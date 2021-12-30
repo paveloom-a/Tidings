@@ -1,0 +1,7 @@
+pub const APP_ID: &str = @app_id@;
+pub const DOMAINNAME: &str = @domainname@;
+pub const LOCALEDIR: &str = @localedir@;
+pub const PKGDATADIR: &str = @pkgdatadir@;
+pub const PROFILE: &str = @profile@;
+pub const RESOURCES_FILE: &str = @resources_file@;
+pub const VERSION: &str = @version@;

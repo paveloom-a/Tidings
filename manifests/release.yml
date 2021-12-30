@@ -1,0 +1,28 @@
+app-id: paveloom.apps.tidings
+runtime: org.gnome.Platform
+runtime-version: "41"
+sdk: org.gnome.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+command: tidings
+finish-args:
+  - --socket=fallback-x11
+  - --socket=wayland
+  - --device=dri
+  - --talk-name=org.a11y.Bus
+build-options:
+  append-path: /usr/lib/sdk/rust-stable/bin
+  build-args:
+    - --share=network
+  test-args:
+    - --socket=x11
+    - --share=network
+modules:
+  - name: tidings
+    buildsystem: meson
+    run-tests: true
+    config-opts:
+      - --buildtype=release
+    sources:
+      - type: dir
+        path: ../

@@ -1,0 +1,7 @@
+[alias]
+lint = [
+     "clippy",
+     "--",
+     "-D",
+     "clippy::pedantic"
+]

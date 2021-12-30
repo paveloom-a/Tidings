@@ -1,0 +1,6 @@
+# Builds
+target
+.flatpak-builder
+
+# Application config
+src/config.rs

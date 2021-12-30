@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=Tidings
+Comment=Finally, an RSS reader without a built-in browser
+Type=Application
+Exec=tidings
+Terminal=false
+Categories=Network;Feed;
+Keywords=RSS;
+Icon=@icon@
+StartupNotify=true
