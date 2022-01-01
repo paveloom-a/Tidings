@@ -3,5 +3,7 @@ lint = [
      "clippy",
      "--",
      "-D",
-     "clippy::pedantic"
+     "clippy::pedantic",
+     "-A",
+     "clippy::module-name-repetitions"
 ]

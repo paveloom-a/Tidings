@@ -23,9 +23,11 @@ run_command(
 
 rust_sources = files(
   'application.rs',
+  'application/components.rs',
+  'application/components/about_dialog.rs',
+  'application/components/help_overlay.rs',
   'config.rs',
   'main.rs',
-  'window.rs',
 )
 
 cargo_sources = files(

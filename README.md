@@ -17,7 +17,7 @@ flatpak-builder --user --install --force-clean target/flatpak/release manifests/
 *or*
 
 ```bash
-flatpak-builder --user --install --force-clean target/flatpak/debug manifests/debug.yml
+flatpak-builder --user --install --force-clean target/flatpak/debug manifests/dev.yml
 ```
 
 Additionally, these commands will install the application in your system, so you can run it.

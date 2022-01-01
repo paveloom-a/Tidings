@@ -48,14 +48,13 @@ domainname = meson.project_name()
 
 if get_option('buildtype') == 'release'
   profile = 'release'
-  vcs_tag = run_command('git', 'rev-parse', '--short', 'HEAD').stdout().strip()
   version_suffix = ''
   application_id = '@0@'.format(base_id)
 else
-  profile = 'debug'
+  profile = 'dev'
   vcs_tag = run_command('git', 'rev-parse', '--short', 'HEAD').stdout().strip()
   if vcs_tag == ''
-    version_suffix = '-debug'
+    version_suffix = '-dev'
   else
     version_suffix = '-@0@'.format(vcs_tag)
   endif

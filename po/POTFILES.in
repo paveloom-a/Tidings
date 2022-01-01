@@ -1,6 +1,3 @@
 data/paveloom.apps.tidings.desktop.in.in
 data/paveloom.apps.tidings.gschema.xml.in
 data/paveloom.apps.tidings.metainfo.xml.in.in
-data/resources/ui/shortcuts.ui
-data/resources/ui/window.ui
-src/application.rs

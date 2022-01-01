@@ -13,14 +13,14 @@ fi
 if [ "${PROFILE}" = "--release" ]; then
     PROFILE=release
 else
-    PROFILE=debug
+    PROFILE=dev
 fi
 
 # Define the ID of the app
 if [ "${PROFILE}" != "release" ]; then
     ID=paveloom.apps.tidings
 else
-    ID=paveloom.apps.tidings.debug
+    ID=paveloom.apps.tidings.dev
 fi
 
 # Define the paths
@@ -39,6 +39,7 @@ _PATH=$PATH:$(yq eval .build-options.append-path "${MANIFEST}")
 mapfile -t BUILD_ARGS < <(yq eval .build-options.build-args[] "${MANIFEST}")
 mapfile -t TEST_ARGS < <(yq eval .build-options.test-args[] "${MANIFEST}")
 mapfile -t FINISH_ARGS < <(yq eval .finish-args[] "${MANIFEST}")
+mapfile -t CONFIG_OPTS < <(yq eval .modules[0].config-opts[] "${MANIFEST}")
 
 # Define the general args
 GENERAL_ARGS=(
@@ -74,7 +75,7 @@ if [ ! -d "${TARGET}" ]; then
         "$(yq eval .runtime "${MANIFEST}")" \
         "$(yq eval .runtime-version "${MANIFEST}")"
     # Configure the build
-    flatpak-build meson setup --prefix /app "${TARGET}" --buildtype "${PROFILE}"
+    flatpak-build meson setup --prefix /app "${TARGET}" "${CONFIG_OPTS[@]}"
 fi
 # Build the application
 flatpak-build meson compile -C "${TARGET}"

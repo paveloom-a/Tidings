@@ -1,153 +1,177 @@
-use anyhow::{Context, Result};
+mod components;
+
+use anyhow::Result;
 use gettextrs::gettext;
-use log::info;
+use gtk::gio;
+use gtk::prelude::{ApplicationWindowExt, GtkWindowExt, SettingsExt, WidgetExt};
+use gtk::Justification;
+use log::{debug, info, warn};
+use relm4::{
+    actions::{AccelsPlus, ActionGroupName, ActionName, RelmAction, RelmActionGroup},
+    send, set_global_css, AppUpdate, Model, RelmApp, RelmComponent, Sender, WidgetPlus, Widgets,
+};
 
-use glib::clone;
-use gtk::prelude::*;
-use gtk::subclass::prelude::*;
-use gtk::{gdk, gio, glib};
+use super::config::{APP_ID, PKGDATADIR, PROFILE, VERSION};
+use components::{AboutDialogModel, AboutDialogMsg, HelpOverlayModel, HelpOverlayMsg};
 
-use crate::config::{APP_ID, PKGDATADIR, PROFILE, VERSION};
-use crate::window::ExampleApplicationWindow;
+struct AppModel {
+    settings: gio::Settings,
+}
 
-mod imp {
-    use gtk::glib::{self, WeakRef};
-    use gtk::prelude::*;
-    use gtk::subclass::prelude::*;
-    use log::debug;
-    use once_cell::sync::OnceCell;
-
-    use crate::config::APP_ID;
-    use crate::window::ExampleApplicationWindow;
-
-    #[derive(Debug, Default)]
-    pub struct ExampleApplication {
-        pub window: OnceCell<WeakRef<ExampleApplicationWindow>>,
+impl AppModel {
+    fn save_settings(&self, width: i32, height: i32, is_maximized: bool) -> Result<()> {
+        self.settings.set_int("window-width", width)?;
+        self.settings.set_int("window-height", height)?;
+        self.settings.set_boolean("is-maximized", is_maximized)?;
+        Ok(())
     }
+}
 
-    #[glib::object_subclass]
-    impl ObjectSubclass for ExampleApplication {
-        const NAME: &'static str = "ExampleApplication";
-        type Type = super::ExampleApplication;
-        type ParentType = gtk::Application;
-    }
+enum AppMsg {
+    OpenAboutDialog,
+    OpenHelpOverlay,
+    Close(i32, i32, bool),
+}
 
-    impl ObjectImpl for ExampleApplication {}
+#[derive(relm4_macros::Components)]
+struct AppComponents {
+    about_dialog: RelmComponent<AboutDialogModel, AppModel>,
+    help_overlay: RelmComponent<HelpOverlayModel, AppModel>,
+}
 
-    impl ApplicationImpl for ExampleApplication {
-        fn activate(&self, app: &Self::Type) {
-            debug!("GtkApplication<ExampleApplication>::activate");
+impl Model for AppModel {
+    type Msg = AppMsg;
+    type Widgets = AppWidgets;
+    type Components = AppComponents;
+}
 
-            if let Some(window) = self.window.get() {
-                let window = window.upgrade().unwrap();
-                window.show();
-                window.present();
-                return;
+impl AppUpdate for AppModel {
+    fn update(&mut self, msg: AppMsg, components: &AppComponents, _sender: Sender<AppMsg>) -> bool {
+        match msg {
+            AppMsg::OpenAboutDialog => {
+                components.about_dialog.send(AboutDialogMsg::Open).unwrap();
+                true
             }
-
-            let window = ExampleApplicationWindow::new(app);
-            self.window
-                .set(window.downgrade())
-                .expect("Window already set.");
-
-            app.main_window().present();
-        }
-
-        fn startup(&self, app: &Self::Type) {
-            debug!("GtkApplication<ExampleApplication>::startup");
-            self.parent_startup(app);
-
-            // Set icons for shell
-            gtk::Window::set_default_icon_name(APP_ID);
-
-            crate::application::ExampleApplication::setup_css();
-            app.setup_gactions();
-            app.setup_accels();
+            AppMsg::OpenHelpOverlay => {
+                components.help_overlay.send(HelpOverlayMsg::Open).unwrap();
+                true
+            }
+            AppMsg::Close(width, height, is_maximized) => {
+                if let Err(err) = self.save_settings(width, height, is_maximized) {
+                    warn!("Failed to save window state");
+                    debug!("{}", &err);
+                }
+                false
+            }
         }
     }
-
-    impl GtkApplicationImpl for ExampleApplication {}
 }
 
-glib::wrapper! {
-    pub struct ExampleApplication(ObjectSubclass<imp::ExampleApplication>)
-        @extends gio::Application, gtk::Application,
-        @implements gio::ActionMap, gio::ActionGroup;
-}
-
-impl ExampleApplication {
-    pub fn new() -> Result<Self> {
-        glib::Object::new(&[
-            ("application-id", &Some(APP_ID)),
-            ("flags", &gio::ApplicationFlags::empty()),
-            ("resource-base-path", &Some("/paveloom/tidings/")),
-        ])
-        .with_context(|| "Application initialization failed...")
-    }
-
-    fn main_window(&self) -> ExampleApplicationWindow {
-        let imp = imp::ExampleApplication::from_instance(self);
-        imp.window.get().unwrap().upgrade().unwrap()
-    }
-
-    fn setup_gactions(&self) {
-        // Quit
-        let action_quit = gio::SimpleAction::new("quit", None);
-        action_quit.connect_activate(clone!(@weak self as app => move |_, _| {
-            // This is needed to trigger the delete event and saving the window state
-            app.main_window().close();
-            app.quit();
-        }));
-        self.add_action(&action_quit);
-
-        // About
-        let action_about = gio::SimpleAction::new("about", None);
-        action_about.connect_activate(clone!(@weak self as app => move |_, _| {
-            app.show_about_dialog();
-        }));
-        self.add_action(&action_about);
-    }
-
-    // Sets up keyboard shortcuts
-    fn setup_accels(&self) {
-        self.set_accels_for_action("app.quit", &["<primary>q"]);
-    }
-
-    fn setup_css() {
-        let provider = gtk::CssProvider::new();
-        provider.load_from_resource("/paveloom/tidings/style.css");
-        if let Some(display) = gdk::Display::default() {
-            gtk::StyleContext::add_provider_for_display(
-                &display,
-                &provider,
-                gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
-            );
+#[relm4_macros::widget]
+impl Widgets<AppModel, ()> for AppWidgets {
+    view! {
+        main_window = gtk::ApplicationWindow {
+            set_title: Some(&gettext("Tidings")),
+            set_icon_name: Some(APP_ID),
+            set_default_width: model.settings.int("window-width"),
+            set_default_height: model.settings.int("window-height"),
+            set_maximized: model.settings.boolean("is-maximized"),
+            set_help_overlay: Some(components.help_overlay.root_widget()),
+            set_titlebar = Some(&gtk::HeaderBar) {
+                pack_end = &gtk::MenuButton {
+                    set_icon_name: "open-menu-symbolic",
+                    set_menu_model: Some(&main_menu)
+                }
+            },
+            connect_close_request(sender) => move |w| {
+                send!(sender, AppMsg::Close(w.default_width(), w.default_height(), w.is_maximized()));
+                gtk::Inhibit(true)
+            },
+            set_child = Some(&gtk::Label) {
+                add_css_class: "title-header",
+                set_margin_all: 5,
+                set_hexpand: true,
+                set_label: &gettext("Hello world!"),
+                set_justify: Justification::Center,
+            },
         }
     }
 
-    fn show_about_dialog(&self) {
-        let dialog = gtk::AboutDialogBuilder::new()
-            .logo_icon_name(APP_ID)
-            // Insert your license of choice here
-            .license_type(gtk::License::Gpl30Only)
-            // Insert your website here
-            .website("https://github.com/paveloom-a/Tidings")
-            .version(VERSION)
-            .transient_for(&self.main_window())
-            .translator_credits(&gettext("translator-credits"))
-            .modal(true)
-            .authors(vec!["Pavel Sobolev".into()])
-            .artists(vec!["Pavel Sobolev".into()])
-            .build();
-
-        dialog.show();
+    menu! {
+        main_menu: {
+            "Preferences" => OpenPreferences,
+            "Keyboard Shortcuts" => OpenHelpOverlay,
+            "About Tidings" => OpenAboutDialog,
+        }
     }
 
-    pub fn run(&self) {
-        info!("Tidings ({})", APP_ID);
-        info!("Version: {} ({})", VERSION, PROFILE);
-        info!("Datadir: {}", PKGDATADIR);
+    fn post_init() {
+        set_global_css(b".title-header { font-size: 36px; font-weight: bold; }");
 
-        ApplicationExtManual::run(self);
+        if PROFILE == "dev" {
+            main_window.add_css_class("devel");
+        }
+
+        let app = relm4::gtk_application();
+        app.set_accelerators_for_action::<OpenHelpOverlay>(&["<primary>question"]);
+        app.set_accelerators_for_action::<CloseApplication>(&["<primary>Q"]);
+
+        let window_actions = RelmActionGroup::<WindowActionGroup>::new();
+        let application_actions = RelmActionGroup::<ApplicationActionGroup>::new();
+
+        let sender_clone = sender.clone();
+        let open_help_overlay_action: RelmAction<OpenHelpOverlay> =
+            RelmAction::new_statelesss(move |_| {
+                send!(sender_clone, AppMsg::OpenHelpOverlay);
+            });
+
+        let sender_clone = sender.clone();
+        let open_about_dialog_action: RelmAction<OpenAboutDialog> =
+            RelmAction::new_statelesss(move |_| {
+                send!(sender_clone, AppMsg::OpenAboutDialog);
+            });
+
+        let main_window_clone = main_window.clone();
+        let close_application_action: RelmAction<CloseApplication> =
+            RelmAction::new_statelesss(move |_| {
+                send!(
+                    sender,
+                    AppMsg::Close(
+                        main_window_clone.default_width(),
+                        main_window_clone.default_height(),
+                        main_window_clone.is_maximized()
+                    )
+                );
+            });
+
+        application_actions.add_action(open_about_dialog_action);
+        application_actions.add_action(close_application_action);
+        window_actions.add_action(open_help_overlay_action);
+
+        let application_actions_group = application_actions.into_action_group();
+        let window_actions_group = window_actions.into_action_group();
+        main_window.insert_action_group("win", Some(&window_actions_group));
+        main_window.insert_action_group("app", Some(&application_actions_group));
     }
+}
+
+relm4::new_action_group!(WindowActionGroup, "win");
+relm4::new_action_group!(ApplicationActionGroup, "app");
+
+relm4::new_statless_action!(OpenHelpOverlay, WindowActionGroup, "show-help-overlay");
+relm4::new_statless_action!(OpenAboutDialog, ApplicationActionGroup, "about");
+relm4::new_statless_action!(OpenPreferences, ApplicationActionGroup, "preferences");
+relm4::new_statless_action!(CloseApplication, ApplicationActionGroup, "quit");
+
+pub fn run() {
+    let model = AppModel {
+        settings: gio::Settings::new(APP_ID),
+    };
+    let app = RelmApp::new(model);
+
+    info!("Tidings ({})", APP_ID);
+    info!("Version: {} ({})", VERSION, PROFILE);
+    info!("Datadir: {}", PKGDATADIR);
+
+    app.run();
 }

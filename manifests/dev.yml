@@ -1,4 +1,4 @@
-app-id: paveloom.apps.tidings.debug
+app-id: paveloom.apps.tidings.dev
 runtime: org.gnome.Platform
 runtime-version: "41"
 sdk: org.gnome.Sdk
@@ -24,8 +24,6 @@ modules:
   - name: tidings
     buildsystem: meson
     run-tests: true
-    config-opts:
-      - --buildtype=debug
     sources:
       - type: dir
         path: ../

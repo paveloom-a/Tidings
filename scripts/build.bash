@@ -17,8 +17,8 @@ CARGO_MANIFEST="${MESON_SOURCE_ROOT}"/Cargo.toml
 export CARGO_HOME="${CARGO_TARGET_DIR}"/cargo-home
 
 # Build the chosen profile
-if [[ "$PROFILE" = "debug" ]]; then
-    echo -e "\n    DEBUG BUILD\n"
+if [[ "$PROFILE" = "dev" ]]; then
+    echo -e "\n    DEV BUILD\n"
     cargo build --manifest-path "${CARGO_MANIFEST}"
     echo ''
     cp "${CARGO_TARGET_DIR}"/debug/"${PROJECT_NAME}" "${OUTPUT}"
