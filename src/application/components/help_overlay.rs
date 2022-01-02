@@ -38,43 +38,27 @@ impl ComponentUpdate<AppModel> for HelpOverlayModel {
     }
 }
 
-pub struct HelpOverlayWidgets {
-    help_overlay: gtk::ShortcutsWindow,
+fn help_overlay() -> gtk::ShortcutsWindow {
+    if let Some(sw) =
+        gtk::Builder::from_string(include_str!("../../../data/resources/ui/help-overlay.ui"))
+            .object::<gtk::ShortcutsWindow>("help_overlay")
+    {
+        sw
+    } else {
+        error!("Failed to load Shortcuts UI");
+        gtk::ShortcutsWindowBuilder::default().build()
+    }
 }
 
+#[relm4_macros::widget(pub)]
 impl Widgets<HelpOverlayModel, AppModel> for HelpOverlayWidgets {
-    type Root = gtk::ShortcutsWindow;
-
-    /// Initialize the UI.
-    fn init_view(
-        _model: &HelpOverlayModel,
-        _parent_widgets: &(),
-        sender: Sender<HelpOverlayMsg>,
-    ) -> Self {
-        let help_overlay: gtk::ShortcutsWindow = if let Some(sw) =
-            gtk::Builder::from_string(include_str!("../../../data/resources/ui/help-overlay.ui"))
-                .object::<gtk::ShortcutsWindow>("help_overlay")
-        {
-            sw.connect_close_request(move |_| {
+    view! {
+        help_overlay() -> gtk::ShortcutsWindow {
+            set_visible: watch!(model.visible),
+            connect_close_request(sender) => move |_| {
                 send!(sender, HelpOverlayMsg::Close);
                 gtk::Inhibit(true)
-            });
-            sw
-        } else {
-            error!("Failed to load Shortcuts UI");
-            gtk::ShortcutsWindowBuilder::default().build()
-        };
-
-        Self { help_overlay }
-    }
-
-    /// Return the root widget.
-    fn root_widget(&self) -> Self::Root {
-        self.help_overlay.clone()
-    }
-
-    /// Update the view to represent the updated model.
-    fn view(&mut self, model: &HelpOverlayModel, _sender: Sender<HelpOverlayMsg>) {
-        self.help_overlay.set_visible(model.visible);
+            }
+        }
     }
 }
