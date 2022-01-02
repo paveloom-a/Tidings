@@ -43,20 +43,20 @@ impl ComponentUpdate<AppModel> for AboutDialogModel {
 impl Widgets<AboutDialogModel, AppModel> for AboutDialogWidgets {
     view! {
         gtk::AboutDialog {
-            set_logo_icon_name: Some(APP_ID),
+            set_artists: &["Pavel Sobolev"],
+            set_authors: &["Pavel Sobolev"],
             set_license_type: gtk::License::Gpl30Only,
-            set_website: Some("https://github.com/paveloom-a/Tidings"),
-            set_version: Some(VERSION),
+            set_logo_icon_name: Some(APP_ID),
+            set_modal: true,
             set_transient_for: parent!(Some(&parent_widgets.main_window)),
             set_translator_credits: Some(&gettext("translator-credits")),
-            set_modal: true,
-            set_authors: &["Pavel Sobolev"],
-            set_artists: &["Pavel Sobolev"],
+            set_version: Some(VERSION),
             set_visible: watch!(model.visible),
+            set_website: Some("https://github.com/paveloom-a/Tidings"),
             connect_close_request(sender) => move |_| {
                 send!(sender, AboutDialogMsg::Close);
-                gtk::Inhibit(true)
-            }
+                gtk::Inhibit(false)
+            },
         }
     }
 }

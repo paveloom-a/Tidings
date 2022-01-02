@@ -46,8 +46,9 @@ GENERAL_ARGS=(
     --nofilesystem=host
     --filesystem="${ROOT}"
     --filesystem="${TARGET}"
-    --filesystem="${TARGET}"
     --env=PATH="${_PATH}"
+    --env=LD_LIBRARY_PATH=/app/lib
+    --env=PKG_CONFIG_PATH=/app/lib/pkgconfig:/app/share/pkgconfig:/usr/lib/pkgconfig:/usr/share/pkgconfig
 )
 
 # Execute the build command in the build environment
@@ -74,6 +75,28 @@ if [ ! -d "${TARGET}" ]; then
         "$(yq eval .sdk "${MANIFEST}")" \
         "$(yq eval .runtime "${MANIFEST}")" \
         "$(yq eval .runtime-version "${MANIFEST}")"
+    # Download the dependencies
+    flatpak-builder \
+        --ccache \
+        --force-clean \
+        --disable-updates \
+        --download-only \
+        --state-dir="${ROOT}"/.flatpak-builder \
+        --stop-at=tidings \
+        "${TARGET}" \
+        "${MANIFEST}"
+    # Build the dependencies
+    flatpak-builder \
+        --ccache \
+        --force-clean \
+        --disable-updates \
+        --disable-download \
+        --build-only \
+        --keep-build-dirs \
+        --state-dir="${ROOT}"/.flatpak-builder \
+        --stop-at=tidings \
+        "${TARGET}" \
+        "${MANIFEST}"
     # Configure the build
     flatpak-build meson setup --prefix /app "${TARGET}" "${CONFIG_OPTS[@]}"
 fi
@@ -88,7 +111,6 @@ flatpak-build meson install --quiet -C "${TARGET}"
 flatpak build \
     --with-appdir \
     --allow=devel \
-    --bind-mount=/run/user/1000/doc=/run/user/1000/doc/by-app/"${ID}" \
     "${FINISH_ARGS[@]}" \
     "${TARGET}" \
     tidings

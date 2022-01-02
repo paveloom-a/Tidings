@@ -544,6 +544,38 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 
 [[package]]
+name = "libadwaita"
+version = "0.1.0-beta-1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cef1e2d4b5490caff8a1d44648f68721ab917f765a7fa1d0226fcdac42d86552"
+dependencies = [
+ "gdk-pixbuf",
+ "gdk4",
+ "gio",
+ "glib",
+ "gtk4",
+ "libadwaita-sys",
+ "libc",
+ "once_cell",
+ "pango",
+]
+
+[[package]]
+name = "libadwaita-sys"
+version = "0.1.0-beta-1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7a165d8c96824753ec072b70a9149790efa3d5abb07e130cda7eb04ef2006d4c"
+dependencies = [
+ "gdk4-sys",
+ "gio-sys",
+ "glib-sys",
+ "gobject-sys",
+ "gtk4-sys",
+ "libc",
+ "system-deps 3.2.0",
+]
+
+[[package]]
 name = "libc"
 version = "0.2.112"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -795,6 +827,7 @@ dependencies = [
  "fragile",
  "futures-core",
  "gtk4",
+ "libadwaita",
  "log",
  "once_cell",
 ]
@@ -963,8 +996,8 @@ dependencies = [
  "anyhow",
  "gettext-rs",
  "gtk4",
+ "libadwaita",
  "log",
- "once_cell",
  "pretty_env_logger",
  "relm4",
  "relm4-macros",

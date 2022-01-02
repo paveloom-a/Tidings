@@ -1,15 +1,12 @@
 mod components;
 
+use adw::prelude::GtkWindowExt;
 use anyhow::Result;
-use gettextrs::gettext;
-use gtk::gio;
-use gtk::prelude::{ApplicationWindowExt, GtkWindowExt, SettingsExt, WidgetExt};
-use gtk::Justification;
-use log::{debug, info, warn};
-use relm4::{
-    actions::{AccelsPlus, ActionGroupName, ActionName, RelmAction, RelmActionGroup},
-    send, set_global_css, AppUpdate, Model, RelmApp, RelmComponent, Sender, WidgetPlus, Widgets,
-};
+use gtk::prelude::{SettingsExt, WidgetExt};
+use gtk::{gdk, gio};
+use log::{debug, error, info, warn};
+use relm4::actions::{AccelsPlus, ActionGroupName, ActionName, RelmAction, RelmActionGroup};
+use relm4::{send, AppUpdate, Model, RelmApp, RelmComponent, Sender, Widgets};
 
 use super::config::{APP_ID, PKGDATADIR, PROFILE, VERSION};
 use components::{AboutDialogModel, AboutDialogMsg, HelpOverlayModel, HelpOverlayMsg};
@@ -67,54 +64,35 @@ impl AppUpdate for AppModel {
     }
 }
 
+fn main_window() -> adw::ApplicationWindow {
+    if let Some(mw) = gtk::Builder::from_resource("/paveloom/apps/tidings/ui/main-window.ui")
+        .object::<adw::ApplicationWindow>("main_window")
+    {
+        mw
+    } else {
+        error!("Failed to load Main Window UI");
+        adw::ApplicationWindowBuilder::default().build()
+    }
+}
+
 #[relm4_macros::widget]
 impl Widgets<AppModel, ()> for AppWidgets {
     view! {
-        main_window = gtk::ApplicationWindow {
-            set_title: Some(&gettext("Tidings")),
-            set_icon_name: Some(APP_ID),
+        main_window = main_window() -> adw::ApplicationWindow {
             set_default_width: model.settings.int("window-width"),
             set_default_height: model.settings.int("window-height"),
             set_maximized: model.settings.boolean("is-maximized"),
-            set_help_overlay: Some(components.help_overlay.root_widget()),
-            set_titlebar = Some(&gtk::HeaderBar) {
-                pack_end = &gtk::MenuButton {
-                    set_icon_name: "open-menu-symbolic",
-                    set_menu_model: Some(&main_menu)
-                }
-            },
             connect_close_request(sender) => move |w| {
                 send!(sender, AppMsg::Close(w.default_width(), w.default_height(), w.is_maximized()));
                 gtk::Inhibit(true)
             },
-            set_child = Some(&gtk::Label) {
-                add_css_class: "title-header",
-                set_margin_all: 5,
-                set_hexpand: true,
-                set_label: &gettext("Hello world!"),
-                set_justify: Justification::Center,
-            },
-        }
-    }
-
-    menu! {
-        main_menu: {
-            "Preferences" => OpenPreferences,
-            "Keyboard Shortcuts" => OpenHelpOverlay,
-            "About Tidings" => OpenAboutDialog,
         }
     }
 
     fn post_init() {
-        set_global_css(b".title-header { font-size: 36px; font-weight: bold; }");
-
         if PROFILE == "dev" {
             main_window.add_css_class("devel");
         }
-
-        let app = relm4::gtk_application();
-        app.set_accelerators_for_action::<OpenHelpOverlay>(&["<primary>question"]);
-        app.set_accelerators_for_action::<CloseApplication>(&["<primary>Q"]);
 
         let window_actions = RelmActionGroup::<WindowActionGroup>::new();
         let application_actions = RelmActionGroup::<ApplicationActionGroup>::new();
@@ -144,21 +122,35 @@ impl Widgets<AppModel, ()> for AppWidgets {
                 );
             });
 
+        window_actions.add_action(open_help_overlay_action);
         application_actions.add_action(open_about_dialog_action);
         application_actions.add_action(close_application_action);
-        window_actions.add_action(open_help_overlay_action);
 
         let application_actions_group = application_actions.into_action_group();
         let window_actions_group = window_actions.into_action_group();
         main_window.insert_action_group("win", Some(&window_actions_group));
         main_window.insert_action_group("app", Some(&application_actions_group));
+
+        let app = relm4::gtk_application();
+        app.set_accelerators_for_action::<OpenHelpOverlay>(&["<primary>question"]);
+        app.set_accelerators_for_action::<CloseApplication>(&["<primary>Q"]);
+
+        let provider = gtk::CssProvider::new();
+        provider.load_from_resource("/paveloom/apps/tidings/style.css");
+        if let Some(display) = gdk::Display::default() {
+            gtk::StyleContext::add_provider_for_display(
+                &display,
+                &provider,
+                gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
+            );
+        }
     }
 }
 
 relm4::new_action_group!(WindowActionGroup, "win");
-relm4::new_action_group!(ApplicationActionGroup, "app");
-
 relm4::new_statless_action!(OpenHelpOverlay, WindowActionGroup, "show-help-overlay");
+
+relm4::new_action_group!(ApplicationActionGroup, "app");
 relm4::new_statless_action!(OpenAboutDialog, ApplicationActionGroup, "about");
 relm4::new_statless_action!(OpenPreferences, ApplicationActionGroup, "preferences");
 relm4::new_statless_action!(CloseApplication, ApplicationActionGroup, "quit");

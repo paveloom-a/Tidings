@@ -39,9 +39,8 @@ impl ComponentUpdate<AppModel> for HelpOverlayModel {
 }
 
 fn help_overlay() -> gtk::ShortcutsWindow {
-    if let Some(sw) =
-        gtk::Builder::from_string(include_str!("../../../data/resources/ui/help-overlay.ui"))
-            .object::<gtk::ShortcutsWindow>("help_overlay")
+    if let Some(sw) = gtk::Builder::from_resource("/paveloom/apps/tidings/gtk/help-overlay.ui")
+        .object::<gtk::ShortcutsWindow>("help_overlay")
     {
         sw
     } else {
@@ -54,10 +53,11 @@ fn help_overlay() -> gtk::ShortcutsWindow {
 impl Widgets<HelpOverlayModel, AppModel> for HelpOverlayWidgets {
     view! {
         help_overlay() -> gtk::ShortcutsWindow {
+            set_transient_for: parent!(Some(&parent_widgets.main_window)),
             set_visible: watch!(model.visible),
             connect_close_request(sender) => move |_| {
                 send!(sender, HelpOverlayMsg::Close);
-                gtk::Inhibit(true)
+                gtk::Inhibit(false)
             }
         }
     }

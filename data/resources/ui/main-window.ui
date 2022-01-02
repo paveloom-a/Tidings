@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <object class="AdwApplicationWindow" id="main_window">
+    <property name="default_width">960</property>
+    <property name="default_height">550</property>
+    <property name="resizable">True</property>
+    <style>
+      <class name="transparent-window" />
+    </style>
+    <child>
+      <object class="GtkBox">
+        <property name="orientation">vertical</property>
+        <child>
+          <object class="GtkHeaderBar">
+            <child type="end">
+              <object class="GtkMenuButton">
+                <property name="tooltip_text" translatable="yes">Menu</property>
+                <property name="icon_name">open-menu-symbolic</property>
+                <property name="menu_model">menu_model</property>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="GtkLabel">
+            <property name="label" translatable="yes">Hello world!</property>
+            <property name="vexpand">True</property>
+            <property name="margin-start">10</property>
+            <property name="margin-end">10</property>
+            <property name="margin-top">10</property>
+            <property name="margin-bottom">10</property>
+            <style>
+              <class name="title-header" />
+            </style>
+          </object>
+        </child>
+      </object>
+    </child>
+  </object>
+  <menu id="menu_model">
+    <section>
+      <item>
+        <attribute name='action'>app.preferences</attribute>
+        <attribute name='label' translatable='yes'>_Preferences</attribute>
+      </item>
+      <item>
+        <attribute name='action'>win.show-help-overlay</attribute>
+        <attribute name='label' translatable='yes'>_Keyboard Shortcuts</attribute>
+      </item>
+      <item>
+        <attribute name='action'>app.about</attribute>
+        <attribute name='label' translatable='yes'>_About Tidings</attribute>
+      </item>
+    </section>
+  </menu>
+</interface>

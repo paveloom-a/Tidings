@@ -21,6 +21,50 @@ build-options:
     - --socket=x11
     - --share=network
 modules:
+  - name: libadwaita
+    buildsystem: meson
+    config-opts:
+      - -Dexamples=false
+      - -Dtests=false
+    sources:
+      - type: git
+        url: https://gitlab.gnome.org/GNOME/libadwaita.git
+        commit: 8896cb224e7bd737b7f99bba5a10b56e89f034c4
+        tag: 1.0.0
+    modules:
+      - name: pango
+        buildsystem: meson
+        sources:
+          - type: git
+            url: https://gitlab.gnome.org/GNOME/pango.git
+            tag: 1.50.3
+      - name: libsass
+        buildsystem: meson
+        cleanup:
+          - "*"
+        sources:
+          - type: git
+            url: https://github.com/lazka/libsass.git
+            branch: meson
+      - name: sassc
+        buildsystem: meson
+        cleanup:
+          - "*"
+        sources:
+          - type: git
+            url: https://github.com/lazka/sassc.git
+            branch: meson
+      - name: gtk
+        buildsystem: meson
+        config-opts:
+          - -Ddemos=false
+          - -Dmedia-gstreamer=disabled
+        build-commands:
+          - mkdir -p /app/share/icons/hicolor
+        sources:
+          - type: git
+            url: https://gitlab.gnome.org/GNOME/gtk.git
+            tag: 4.6.0
   - name: tidings
     buildsystem: meson
     run-tests: true

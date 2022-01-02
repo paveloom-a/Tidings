@@ -3,9 +3,9 @@ mod config;
 
 use anyhow::{Context, Result};
 use gettextrs::{gettext, LocaleCategory};
-use gtk::glib;
+use gtk::{gio, glib};
 
-use config::{DOMAINNAME, LOCALEDIR};
+use config::{DOMAINNAME, LOCALEDIR, RESOURCES_FILE};
 
 fn main() -> Result<()> {
     // Initialize the logger
@@ -19,6 +19,12 @@ fn main() -> Result<()> {
 
     glib::set_application_name(&gettext("Tidings"));
 
+    // Load and register the resource bundle
+    let res =
+        gio::Resource::load(RESOURCES_FILE).with_context(|| "Could not load gresource file")?;
+    gio::resources_register(&res);
+
     application::run();
+
     Ok(())
 }
