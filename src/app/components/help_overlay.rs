@@ -1,44 +1,52 @@
+//! Help Overlay
+
 use gtk::prelude::{GtkWindowExt, WidgetExt};
 use log::error;
-use relm4::{send, ComponentUpdate, Model, Sender, Widgets};
+use relm4::{send, ComponentUpdate, Sender};
 
 use super::{AppModel, AppMsg};
 
-pub struct HelpOverlayModel {
+/// Model
+pub struct Model {
+    /// Is the overlay visible?
     visible: bool,
 }
 
-pub enum HelpOverlayMsg {
+/// Messages
+pub enum Msg {
+    /// Open the window
     Open,
+    /// Close the window
     Close,
 }
 
-impl Model for HelpOverlayModel {
-    type Msg = HelpOverlayMsg;
-    type Widgets = HelpOverlayWidgets;
+impl relm4::Model for Model {
+    type Msg = Msg;
+    type Widgets = Widgets;
     type Components = ();
 }
 
-impl ComponentUpdate<AppModel> for HelpOverlayModel {
+impl ComponentUpdate<AppModel> for Model {
     fn init_model(_parent_model: &AppModel) -> Self {
-        HelpOverlayModel { visible: false }
+        Self { visible: false }
     }
 
     fn update(
         &mut self,
-        msg: HelpOverlayMsg,
+        msg: Msg,
         _components: &(),
-        _sender: Sender<HelpOverlayMsg>,
+        _sender: Sender<Msg>,
         _parent_sender: Sender<AppMsg>,
     ) {
         match msg {
-            HelpOverlayMsg::Open => self.visible = true,
-            HelpOverlayMsg::Close => self.visible = false,
+            Msg::Open => self.visible = true,
+            Msg::Close => self.visible = false,
         }
     }
 }
 
-fn help_overlay() -> gtk::ShortcutsWindow {
+/// Get a `ShortcutsWindow`
+fn shortcuts_window() -> gtk::ShortcutsWindow {
     if let Some(sw) = gtk::Builder::from_resource("/paveloom/apps/tidings/gtk/help-overlay.ui")
         .object::<gtk::ShortcutsWindow>("help_overlay")
     {
@@ -48,15 +56,15 @@ fn help_overlay() -> gtk::ShortcutsWindow {
         gtk::builders::ShortcutsWindowBuilder::default().build()
     }
 }
-
+#[allow(clippy::missing_docs_in_private_items)]
 #[relm4_macros::widget(pub)]
-impl Widgets<HelpOverlayModel, AppModel> for HelpOverlayWidgets {
+impl relm4::Widgets<Model, AppModel> for Widgets {
     view! {
-        help_overlay() -> gtk::ShortcutsWindow {
+        shortcuts_window() -> gtk::ShortcutsWindow {
             set_transient_for: parent!(Some(&parent_widgets.main_window)),
             set_visible: watch!(model.visible),
             connect_close_request(sender) => move |_| {
-                send!(sender, HelpOverlayMsg::Close);
+                send!(sender, Msg::Close);
                 gtk::Inhibit(false)
             }
         }

@@ -1,46 +1,54 @@
+//! About Dialog
+
 use gettextrs::gettext;
 use gtk::prelude::{GtkWindowExt, WidgetExt};
-use relm4::{send, ComponentUpdate, Model, Sender, Widgets};
+use relm4::{send, ComponentUpdate, Sender};
 
 use super::{AppModel, AppMsg};
 use crate::config::{APP_ID, VERSION};
 
-pub struct AboutDialogModel {
+/// Model
+pub struct Model {
+    /// Is the window visible?
     visible: bool,
 }
 
-pub enum AboutDialogMsg {
+/// Messages
+pub enum Msg {
+    /// Open the window
     Open,
+    /// Close the window
     Close,
 }
 
-impl Model for AboutDialogModel {
-    type Msg = AboutDialogMsg;
-    type Widgets = AboutDialogWidgets;
+impl relm4::Model for Model {
+    type Msg = Msg;
+    type Widgets = Widgets;
     type Components = ();
 }
 
-impl ComponentUpdate<AppModel> for AboutDialogModel {
+impl ComponentUpdate<AppModel> for Model {
     fn init_model(_parent_model: &AppModel) -> Self {
-        AboutDialogModel { visible: false }
+        Self { visible: false }
     }
 
     fn update(
         &mut self,
-        msg: AboutDialogMsg,
+        msg: Msg,
         _components: &(),
-        _sender: Sender<AboutDialogMsg>,
+        _sender: Sender<Msg>,
         _parent_sender: Sender<AppMsg>,
     ) {
         match msg {
-            AboutDialogMsg::Open => self.visible = true,
-            AboutDialogMsg::Close => self.visible = false,
+            Msg::Open => self.visible = true,
+            Msg::Close => self.visible = false,
         }
     }
 }
 
+#[allow(clippy::missing_docs_in_private_items)]
 #[relm4_macros::widget(pub)]
-impl Widgets<AboutDialogModel, AppModel> for AboutDialogWidgets {
+impl relm4::Widgets<Model, AppModel> for Widgets {
     view! {
         gtk::AboutDialog {
             set_artists: &["Pavel Sobolev"],
@@ -54,7 +62,7 @@ impl Widgets<AboutDialogModel, AppModel> for AboutDialogWidgets {
             set_visible: watch!(model.visible),
             set_website: Some("https://github.com/paveloom-a/Tidings"),
             connect_close_request(sender) => move |_| {
-                send!(sender, AboutDialogMsg::Close);
+                send!(sender, Msg::Close);
                 gtk::Inhibit(false)
             },
         }

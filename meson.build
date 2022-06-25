@@ -2,7 +2,7 @@ project(
   'tidings',
   'rust',
   license: 'GPL-3.0-only',
-  meson_version: '>= 0.59.1',
+  meson_version: '>= 0.59.4',
   version: run_command(
     'grep',
     '-oPm',
@@ -13,24 +13,29 @@ project(
   ).stdout().strip(),
 )
 
-year = '2021'
-date = '2021-12-30'
+year = '2022'
+date = '2022-06-25'
 
 i18n = import('i18n')
 gnome = import('gnome')
 
-base_id = 'paveloom.apps.tidings'
+app_name = 'tidings'
+app_name_capitalized = 'Tidings'
+base_id = 'paveloom.apps.' + app_name
 
-dependency('glib-2.0', version: '>= 2.70.2')
-dependency('gio-2.0', version: '>= 2.70.2')
-dependency('gtk4', version: '>= 4.6.0')
-dependency('libadwaita-1', version: '>= 1.0.1')
+dependency('glib-2.0', version: '= 2.72.2')
+dependency('gio-2.0', version: '= 2.72.2')
+dependency('gtk4', version: '= 4.6.5')
+dependency('libadwaita-1', version: '= 1.1.2')
 
+cargo = find_program('cargo', required: true)
+cargo_script = find_program(meson.project_source_root() / 'scripts' / 'build.bash')
+sources_script =find_program(meson.project_source_root() / 'scripts' / 'sources.bash')
 glib_compile_resources = find_program('glib-compile-resources', required: true)
 glib_compile_schemas = find_program('glib-compile-schemas', required: true)
 desktop_file_validate = find_program('desktop-file-validate', required: false)
 appstream_util = find_program('appstream-util', required: false)
-cargo = find_program('cargo', required: true)
+update_mime_database = find_program('update-mime-database', required: false)
 
 version = meson.project_version()
 version_array = version.split('.')
@@ -66,7 +71,27 @@ endif
 subdir('data')
 # Set up gettext localisation
 subdir('po')
-# Build the application
+# Prepare the source files of the application
 subdir('src')
+
+# Build the application
+custom_target(
+  'cargo-build',
+  build_by_default: true,
+  input: [rust_sources, cargo_sources],
+  output: meson.project_name(),
+  console: true,
+  install: true,
+  install_dir: bindir,
+  depends: resources,
+  command: [
+    cargo_script,
+    meson.project_build_root(),
+    meson.project_source_root(),
+    '@OUTPUT@',
+    profile,
+    meson.project_name(),
+  ]
+)
 
 meson.add_install_script('scripts/post-install.bash')

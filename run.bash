@@ -2,6 +2,9 @@
 
 # This script builds the application and runs it
 
+# Name of the application
+NAME=tidings
+
 # Parse the profile
 PROFILE="$1"
 if [ "${PROFILE}" != "--release" ] && [ "${PROFILE}" != "" ]; then
@@ -18,9 +21,9 @@ fi
 
 # Define the ID of the app
 if [ "${PROFILE}" != "release" ]; then
-    ID=paveloom.apps.tidings
+    ID=paveloom.apps."${NAME}"
 else
-    ID=paveloom.apps.tidings.dev
+    ID=paveloom.apps."${NAME}".dev
 fi
 
 # Define the paths
@@ -82,7 +85,7 @@ if [ ! -d "${TARGET}" ]; then
         --disable-updates \
         --download-only \
         --state-dir="${ROOT}"/.flatpak-builder \
-        --stop-at=tidings \
+        --stop-at="${NAME}" \
         "${TARGET}" \
         "${MANIFEST}"
     # Build the dependencies
@@ -94,12 +97,13 @@ if [ ! -d "${TARGET}" ]; then
         --build-only \
         --keep-build-dirs \
         --state-dir="${ROOT}"/.flatpak-builder \
-        --stop-at=tidings \
+        --stop-at="${NAME}" \
         "${TARGET}" \
         "${MANIFEST}"
     # Configure the build
     flatpak-build meson setup --prefix /app "${TARGET}" "${CONFIG_OPTS[@]}"
 fi
+
 # Build the application
 flatpak-build meson compile -C "${TARGET}"
 # Validate the resources
@@ -113,4 +117,4 @@ flatpak build \
     --allow=devel \
     "${FINISH_ARGS[@]}" \
     "${TARGET}" \
-    tidings
+    "${NAME}"

@@ -79,7 +79,7 @@
                 </child>
                 <property name="title-widget">
                   <object class="AdwWindowTitle">
-                    <property name="title" translatable="yes">Content</property>
+                    <property name="title" translatable="yes">Tidings</property>
                   </object>
                 </property>
               </object>

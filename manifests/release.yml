@@ -1,13 +1,13 @@
 app-id: paveloom.apps.tidings
 runtime: org.gnome.Platform
-runtime-version: "41"
+runtime-version: "42"
 sdk: org.gnome.Sdk
 sdk-extensions:
   - org.freedesktop.Sdk.Extension.rust-stable
 command: tidings
 finish-args:
-  - --socket=fallback-x11
   - --socket=wayland
+  - --socket=fallback-x11
   - --device=dri
   - --talk-name=org.a11y.Bus
 build-options:
@@ -18,45 +18,6 @@ build-options:
     - --socket=x11
     - --share=network
 modules:
-  - name: libadwaita
-    buildsystem: meson
-    builddir: true
-    sources:
-      - type: archive
-        url: https://download.gnome.org/sources/libadwaita/1.0/libadwaita-1.0.1.tar.xz
-        sha256: bb49cf5a09d2e8bc144946c2c3272aecd611667fd027f3808b95d7101ed473d6
-    modules:
-      - name: libsass
-        sources:
-          - type: archive
-            url: https://github.com/sass/libsass/archive/3.6.5.tar.gz
-            sha256: 89d8f2c46ae2b1b826b58ce7dde966a176bac41975b82e84ad46b01a55080582
-          - type: script
-            dest-filename: autogen.sh
-            commands:
-              - autoreconf -si
-      - name: sassc
-        sources:
-          - type: archive
-            url: https://github.com/sass/sassc/archive/3.6.2.tar.gz
-            sha256: 608dc9002b45a91d11ed59e352469ecc05e4f58fc1259fc9a9f5b8f0f8348a03
-          - type: script
-            dest-filename: autogen.sh
-            commands:
-              - autoreconf -si
-      - name: gtk
-        buildsystem: meson
-        config-opts:
-          - -Dbuild-examples=false
-          - -Dbuild-tests=false
-          - -Ddemos=false
-          - -Dmedia-gstreamer=disabled
-        build-commands:
-          - mkdir -p /app/share/icons/hicolor
-        sources:
-          - type: archive
-            url: https://download.gnome.org/sources/gtk/4.6/gtk-4.6.0.tar.xz
-            sha256: 782d5951fbfd585fc9ec76c09d07e28e6014c72db001fb567fff217fb96e4d8c
   - name: tidings
     buildsystem: meson
     run-tests: true

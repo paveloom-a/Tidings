@@ -33,6 +33,7 @@ endif
 
 # Appdata
 appdata_conf = configuration_data()
+appdata_conf.set('app-name-capitalized', app_name_capitalized)
 appdata_conf.set('app-id', application_id)
 appdata_conf.set('date', date)
 appdata_conf.set('domainname', domainname)

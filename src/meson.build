@@ -8,7 +8,7 @@ global_conf.set_quoted('resources_file', pkgdatadir / 'resources.gresource')
 global_conf.set_quoted('version', version + version_suffix)
 
 config = configure_file(
-  input: 'config.rs.in',
+  input: 'config.in',
   output: 'config.rs',
   configuration: global_conf
 )
@@ -21,38 +21,9 @@ run_command(
   check: true
 )
 
-rust_sources = files(
-  'application.rs',
-  'application/components.rs',
-  'application/components/about_dialog.rs',
-  'application/components/content_list_view.rs',
-  'application/components/feeds_back_button.rs',
-  'application/components/feeds_list_view.rs',
-  'application/components/help_overlay.rs',
-  'config.rs',
-  'main.rs',
-)
+rust_sources = run_command(sources_script, check: true).stdout().strip().split('\n')
 
 cargo_sources = files(
   meson.project_source_root() / 'Cargo.toml',
   meson.project_source_root() / 'Cargo.lock',
-)
-
-custom_target(
-  'cargo-build',
-  build_by_default: true,
-  input: [rust_sources, cargo_sources],
-  output: meson.project_name(),
-  console: true,
-  install: true,
-  install_dir: bindir,
-  depends: resources,
-  command: [
-    find_program(meson.project_source_root() / 'scripts' / 'build.bash'),
-    meson.project_build_root(),
-    meson.project_source_root(),
-    '@OUTPUT@',
-    profile,
-    meson.project_name(),
-  ]
 )

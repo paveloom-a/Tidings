@@ -1,4 +1,6 @@
-mod application;
+//! This binary crate is the main executable of the application
+
+mod app;
 mod config;
 
 use anyhow::{Context, Result};
@@ -24,7 +26,8 @@ fn main() -> Result<()> {
         gio::Resource::load(RESOURCES_FILE).with_context(|| "Could not load gresource file")?;
     gio::resources_register(&res);
 
-    application::run();
+    // Run the application
+    app::run();
 
     Ok(())
 }

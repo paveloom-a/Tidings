@@ -1,30 +1,32 @@
-use gtk::glib::{Object, ParamFlags, ParamSpec, ParamSpecString, Value};
+//! Tidings List View
+
+use gtk::glib::{ParamFlags, ParamSpec, ParamSpecString, Value};
 use gtk::prelude::{Cast, ListModelExt, ObjectExt, StaticType, ToValue};
 use gtk::subclass::prelude::{ObjectImpl, ObjectSubclass};
 use gtk::{gio, glib};
 use once_cell::sync::Lazy;
-use relm4::{ComponentUpdate, Model, Sender, Widgets};
+use relm4::{ComponentUpdate, Sender};
 use std::cell::RefCell;
 
 use super::{AppModel, AppMsg};
 
-// Object holding the state
+/// Object holding the state
 #[derive(Default)]
-pub struct GContentObject {
+pub struct GTiding {
+    /// Label
     label: RefCell<String>,
 }
 
-// The central trait for subclassing a GObject
 #[glib::object_subclass]
-impl ObjectSubclass for GContentObject {
-    const NAME: &'static str = "TidingsContentObject";
-    type Type = ContentObject;
+impl ObjectSubclass for GTiding {
+    const NAME: &'static str = "Tiding";
+    type Type = Tiding;
     type ParentType = glib::Object;
 }
 
-// Trait shared by all GObjects
-impl ObjectImpl for GContentObject {
+impl ObjectImpl for GTiding {
     fn properties() -> &'static [ParamSpec] {
+        /// Properties
         static PROPERTIES: Lazy<Vec<ParamSpec>> = Lazy::new(|| {
             vec![ParamSpecString::new(
                 // Name
@@ -39,7 +41,7 @@ impl ObjectImpl for GContentObject {
                 ParamFlags::READWRITE,
             )]
         });
-        PROPERTIES.as_ref()
+        &PROPERTIES
     }
 
     fn set_property(&self, _obj: &Self::Type, _id: usize, value: &Value, pspec: &ParamSpec) {
@@ -63,54 +65,55 @@ impl ObjectImpl for GContentObject {
 }
 
 glib::wrapper! {
-    pub struct ContentObject(ObjectSubclass<GContentObject>);
+    pub struct Tiding(ObjectSubclass<GTiding>);
 }
 
-impl ContentObject {
+impl Tiding {
+    /// Get a new tiding
     pub fn new(label: &str) -> Self {
-        Object::new(&[("label", &label.to_string())]).expect("Could not create `ContentObject`.")
+        glib::Object::new(&[("label", &label.to_string())]).expect("Could not create `Tiding`.")
     }
-
+    /// Update the string
     pub fn update_string(self) {
         let label: String = self.property("label");
         self.set_property("label", format!("{}!", label));
     }
 }
 
-pub struct ContentModel {
+/// Model
+pub struct Model {
+    /// List Store
     store: gio::ListStore,
 }
 
-pub enum ContentMsg {}
-
-impl Model for ContentModel {
-    type Msg = ContentMsg;
-    type Widgets = FeedsWidgets;
+impl relm4::Model for Model {
+    type Msg = ();
+    type Widgets = Widgets;
     type Components = ();
 }
 
-impl ComponentUpdate<AppModel> for ContentModel {
+impl ComponentUpdate<AppModel> for Model {
     fn init_model(_parent_model: &AppModel) -> Self {
-        let store = gio::ListStore::new(ContentObject::static_type());
+        let store = gio::ListStore::new(Tiding::static_type());
         for number in 0..=10 {
-            let feed_object = ContentObject::new(&number.to_string());
+            let feed_object = Tiding::new(&number.to_string());
             store.append(&feed_object);
         }
-
-        ContentModel { store }
+        Self { store }
     }
 
     fn update(
         &mut self,
-        _msg: ContentMsg,
+        _msg: (),
         _components: &(),
-        _sender: Sender<ContentMsg>,
+        _sender: Sender<()>,
         _parent_sender: Sender<AppMsg>,
     ) {
     }
 }
 
-fn list_view(model: &ContentModel) -> gtk::ListView {
+/// Get a `ListView` from the model
+fn list_view(model: &Model) -> gtk::ListView {
     let factory = gtk::SignalListItemFactory::new();
     factory.connect_setup(move |_, list_item| {
         // Create label
@@ -125,7 +128,7 @@ fn list_view(model: &ContentModel) -> gtk::ListView {
             "item",
         );
         let label_expression = gtk::PropertyExpression::new(
-            ContentObject::static_type(),
+            Tiding::static_type(),
             Some(&feed_object_expression),
             "label",
         );
@@ -135,13 +138,13 @@ fn list_view(model: &ContentModel) -> gtk::ListView {
     });
 
     let filter = gtk::CustomFilter::new(move |obj| {
-        // Get `ContentObject` from `glib::Object`
-        let feed_object: &ContentObject = obj
+        // Downcast the object
+        let tiding: &Tiding = obj
             .downcast_ref()
-            .expect("The object needs to be of type `ContentObject`.");
+            .expect("The object needs to be of type `Tiding`.");
 
-        // Get property "label" from `ContentObject`
-        let _label: String = feed_object.property("label");
+        // Get the label
+        let _label: String = tiding.property("label");
 
         // Uncomment to only allow even numbers
         // _number % 2 == 0
@@ -150,17 +153,17 @@ fn list_view(model: &ContentModel) -> gtk::ListView {
     let filter_model = gtk::FilterListModel::new(Some(&model.store), Some(&filter));
 
     let sorter = gtk::CustomSorter::new(move |obj1, obj2| {
-        // Get `ContentObject` from `glib::Object`
-        let feed_object_1: &ContentObject = obj1
+        // Downcast the objects
+        let tiding_1: &Tiding = obj1
             .downcast_ref()
-            .expect("The object needs to be of type `ContentObject`.");
-        let feed_object_2: &ContentObject = obj2
+            .expect("The object needs to be of type `Tiding`.");
+        let tiding_2: &Tiding = obj2
             .downcast_ref()
-            .expect("The object needs to be of type `ContentObject`.");
+            .expect("The object needs to be of type `Tiding`.");
 
-        // Get property "label" from `ContentObject`
-        let label_1: String = feed_object_1.property("label");
-        let label_2: String = feed_object_2.property("label");
+        // Get the labels
+        let label_1: String = tiding_1.property("label");
+        let label_2: String = tiding_2.property("label");
 
         // Reverse sorting order -> large strings come first
         label_2.cmp(&label_1).into()
@@ -171,22 +174,23 @@ fn list_view(model: &ContentModel) -> gtk::ListView {
     gtk::ListView::new(Some(&selection_model), Some(&factory))
 }
 
+#[allow(clippy::missing_docs_in_private_items)]
 #[relm4_macros::widget(pub)]
-impl Widgets<ContentModel, AppModel> for FeedsWidgets {
+impl relm4::Widgets<Model, AppModel> for Widgets {
     view! {
         list_view(model) -> gtk::ListView {
             set_single_click_activate: true,
             connect_activate(sender) => move |list_view, position| {
-                // Get `ContentObject` from model
+                // Get the model
                 let model = list_view.model().expect("The model has to exist.");
-                let content_object: ContentObject = model
+                // Downcast the object
+                let tiding: Tiding = model
                     .item(position)
                     .expect("The item has to exist.")
                     .downcast()
-                    .expect("The item has to be an `ContentObject`.");
-
-                // Update "label" of `ContentObject`
-                content_object.update_string();
+                    .expect("The item has to be an `Tiding`.");
+                // Update the label
+                tiding.update_string();
             }
         }
     }

@@ -3,9 +3,8 @@
 <component type="desktop-application">
   <id>@app-id@</id>
   <metadata_license>CC0</metadata_license>
-  <!-- Insert your license of choice here -->
-  <!-- <project_license>MIT</project_license> -->
-  <name>Tidings</name>
+  <project_license>GPL-3.0</project_license>
+  <name>@app-name-capitalized@</name>
   <summary>Finally, an RSS reader without a built-in browser</summary>
   <description>
     <p>Yet another RSS reader, but this time it's just two lists and an optional description panel.</p>
