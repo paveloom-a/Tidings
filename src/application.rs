@@ -4,12 +4,15 @@ use adw::prelude::GtkWindowExt;
 use anyhow::Result;
 use gtk::prelude::{SettingsExt, WidgetExt};
 use gtk::{gdk, gio};
-use log::{debug, error, info, warn};
-use relm4::actions::{AccelsPlus, ActionGroupName, ActionName, RelmAction, RelmActionGroup};
+use log::{debug, info, warn};
+use relm4::actions::{AccelsPlus, RelmAction, RelmActionGroup};
 use relm4::{send, AppUpdate, Model, RelmApp, RelmComponent, Sender, Widgets};
 
 use super::config::{APP_ID, PKGDATADIR, PROFILE, VERSION};
-use components::{AboutDialogModel, AboutDialogMsg, HelpOverlayModel, HelpOverlayMsg};
+use components::{
+    AboutDialogModel, AboutDialogMsg, ContentModel, FeedsBackButtonModel, FeedsBackButtonMsg,
+    FeedsModel, FeedsMsg, HelpOverlayModel, HelpOverlayMsg,
+};
 
 struct AppModel {
     settings: gio::Settings,
@@ -27,6 +30,9 @@ impl AppModel {
 enum AppMsg {
     OpenAboutDialog,
     OpenHelpOverlay,
+    FeedsBack,
+    FeedsHideBack,
+    FeedsShowBack,
     Close(i32, i32, bool),
 }
 
@@ -34,6 +40,9 @@ enum AppMsg {
 struct AppComponents {
     about_dialog: RelmComponent<AboutDialogModel, AppModel>,
     help_overlay: RelmComponent<HelpOverlayModel, AppModel>,
+    feeds_back_button: RelmComponent<FeedsBackButtonModel, AppModel>,
+    feeds_list_view: RelmComponent<FeedsModel, AppModel>,
+    content_list_view: RelmComponent<ContentModel, AppModel>,
 }
 
 impl Model for AppModel {
@@ -53,6 +62,24 @@ impl AppUpdate for AppModel {
                 components.help_overlay.send(HelpOverlayMsg::Open).unwrap();
                 true
             }
+            AppMsg::FeedsBack => {
+                components.feeds_list_view.send(FeedsMsg::Back).unwrap();
+                true
+            }
+            AppMsg::FeedsHideBack => {
+                components
+                    .feeds_back_button
+                    .send(FeedsBackButtonMsg::Hide)
+                    .unwrap();
+                true
+            }
+            AppMsg::FeedsShowBack => {
+                components
+                    .feeds_back_button
+                    .send(FeedsBackButtonMsg::Show)
+                    .unwrap();
+                true
+            }
             AppMsg::Close(width, height, is_maximized) => {
                 if let Err(err) = self.save_settings(width, height, is_maximized) {
                     warn!("Failed to save window state");
@@ -64,21 +91,36 @@ impl AppUpdate for AppModel {
     }
 }
 
-fn main_window() -> adw::ApplicationWindow {
-    if let Some(mw) = gtk::Builder::from_resource("/paveloom/apps/tidings/ui/main-window.ui")
-        .object::<adw::ApplicationWindow>("main_window")
-    {
-        mw
-    } else {
-        error!("Failed to load Main Window UI");
-        adw::ApplicationWindowBuilder::default().build()
-    }
+fn main_window(components: &AppComponents) -> adw::ApplicationWindow {
+    let builder = gtk::Builder::from_resource("/paveloom/apps/tidings/ui/main-window.ui");
+
+    let main_window: adw::ApplicationWindow = builder
+        .object("main_window")
+        .expect("Failed to load Main Window UI");
+
+    let feeds_header_bar: adw::HeaderBar = builder
+        .object("feeds_header_bar")
+        .expect("Failed to load Feeds Header Bar UI");
+
+    let feeds_scrolled_window: gtk::ScrolledWindow = builder
+        .object("feeds_scrolled_window")
+        .expect("Failed to load Feeds Scrolled Window UI");
+
+    let content_scrolled_window: gtk::ScrolledWindow = builder
+        .object("content_scrolled_window")
+        .expect("Failed to load Content Scrolled Window UI");
+
+    feeds_header_bar.pack_start(components.feeds_back_button.root_widget());
+    feeds_scrolled_window.set_child(Some(components.feeds_list_view.root_widget()));
+    content_scrolled_window.set_child(Some(components.content_list_view.root_widget()));
+
+    main_window
 }
 
 #[relm4_macros::widget]
 impl Widgets<AppModel, ()> for AppWidgets {
     view! {
-        main_window = main_window() -> adw::ApplicationWindow {
+        main_window = main_window(components) -> adw::ApplicationWindow {
             set_default_width: model.settings.int("window-width"),
             set_default_height: model.settings.int("window-height"),
             set_maximized: model.settings.boolean("is-maximized"),
@@ -99,19 +141,19 @@ impl Widgets<AppModel, ()> for AppWidgets {
 
         let sender_clone = sender.clone();
         let open_help_overlay_action: RelmAction<OpenHelpOverlay> =
-            RelmAction::new_statelesss(move |_| {
+            RelmAction::new_stateless(move |_| {
                 send!(sender_clone, AppMsg::OpenHelpOverlay);
             });
 
         let sender_clone = sender.clone();
         let open_about_dialog_action: RelmAction<OpenAboutDialog> =
-            RelmAction::new_statelesss(move |_| {
+            RelmAction::new_stateless(move |_| {
                 send!(sender_clone, AppMsg::OpenAboutDialog);
             });
 
         let main_window_clone = main_window.clone();
         let close_application_action: RelmAction<CloseApplication> =
-            RelmAction::new_statelesss(move |_| {
+            RelmAction::new_stateless(move |_| {
                 send!(
                     sender,
                     AppMsg::Close(
@@ -148,12 +190,12 @@ impl Widgets<AppModel, ()> for AppWidgets {
 }
 
 relm4::new_action_group!(WindowActionGroup, "win");
-relm4::new_statless_action!(OpenHelpOverlay, WindowActionGroup, "show-help-overlay");
+relm4::new_stateless_action!(OpenHelpOverlay, WindowActionGroup, "show-help-overlay");
 
 relm4::new_action_group!(ApplicationActionGroup, "app");
-relm4::new_statless_action!(OpenAboutDialog, ApplicationActionGroup, "about");
-relm4::new_statless_action!(OpenPreferences, ApplicationActionGroup, "preferences");
-relm4::new_statless_action!(CloseApplication, ApplicationActionGroup, "quit");
+relm4::new_stateless_action!(OpenAboutDialog, ApplicationActionGroup, "about");
+relm4::new_stateless_action!(OpenPreferences, ApplicationActionGroup, "preferences");
+relm4::new_stateless_action!(CloseApplication, ApplicationActionGroup, "quit");
 
 pub fn run() {
     let model = AppModel {

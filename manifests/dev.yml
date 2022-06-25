@@ -23,48 +23,43 @@ build-options:
 modules:
   - name: libadwaita
     buildsystem: meson
-    config-opts:
-      - -Dexamples=false
-      - -Dtests=false
+    builddir: true
     sources:
-      - type: git
-        url: https://gitlab.gnome.org/GNOME/libadwaita.git
-        commit: 8896cb224e7bd737b7f99bba5a10b56e89f034c4
-        tag: 1.0.0
+      - type: archive
+        url: https://download.gnome.org/sources/libadwaita/1.0/libadwaita-1.0.1.tar.xz
+        sha256: bb49cf5a09d2e8bc144946c2c3272aecd611667fd027f3808b95d7101ed473d6
     modules:
-      - name: pango
-        buildsystem: meson
-        sources:
-          - type: git
-            url: https://gitlab.gnome.org/GNOME/pango.git
-            tag: 1.50.3
       - name: libsass
-        buildsystem: meson
-        cleanup:
-          - "*"
         sources:
-          - type: git
-            url: https://github.com/lazka/libsass.git
-            branch: meson
+          - type: archive
+            url: https://github.com/sass/libsass/archive/3.6.5.tar.gz
+            sha256: 89d8f2c46ae2b1b826b58ce7dde966a176bac41975b82e84ad46b01a55080582
+          - type: script
+            dest-filename: autogen.sh
+            commands:
+              - autoreconf -si
       - name: sassc
-        buildsystem: meson
-        cleanup:
-          - "*"
         sources:
-          - type: git
-            url: https://github.com/lazka/sassc.git
-            branch: meson
+          - type: archive
+            url: https://github.com/sass/sassc/archive/3.6.2.tar.gz
+            sha256: 608dc9002b45a91d11ed59e352469ecc05e4f58fc1259fc9a9f5b8f0f8348a03
+          - type: script
+            dest-filename: autogen.sh
+            commands:
+              - autoreconf -si
       - name: gtk
         buildsystem: meson
         config-opts:
+          - -Dbuild-examples=false
+          - -Dbuild-tests=false
           - -Ddemos=false
           - -Dmedia-gstreamer=disabled
         build-commands:
           - mkdir -p /app/share/icons/hicolor
         sources:
-          - type: git
-            url: https://gitlab.gnome.org/GNOME/gtk.git
-            tag: 4.6.0
+          - type: archive
+            url: https://download.gnome.org/sources/gtk/4.6/gtk-4.6.0.tar.xz
+            sha256: 782d5951fbfd585fc9ec76c09d07e28e6014c72db001fb567fff217fb96e4d8c
   - name: tidings
     buildsystem: meson
     run-tests: true

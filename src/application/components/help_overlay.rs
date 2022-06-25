@@ -45,7 +45,7 @@ fn help_overlay() -> gtk::ShortcutsWindow {
         sw
     } else {
         error!("Failed to load Shortcuts UI");
-        gtk::ShortcutsWindowBuilder::default().build()
+        gtk::builders::ShortcutsWindowBuilder::default().build()
     }
 }
 
