@@ -1,11 +1,12 @@
 //! Feeds List View
 
+use anyhow::{bail, Context, Result};
 use gtk::glib::{ParamFlags, ParamSpec, ParamSpecBoolean, ParamSpecString, Value};
 use gtk::prelude::{Cast, ListModelExt, ObjectExt, StaticType, ToValue};
 use gtk::subclass::prelude::{ObjectImpl, ObjectSubclass};
 use gtk::{gio, glib};
 use once_cell::sync::Lazy;
-use relm4::{send, ComponentUpdate, Sender};
+use relm4::{ComponentUpdate, Sender};
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
@@ -32,6 +33,7 @@ impl ObjectImpl for GFeed {
         /// Properties
         static PROPERTIES: Lazy<Vec<ParamSpec>> = Lazy::new(|| {
             vec![
+                // Is the feed a directory?
                 ParamSpecBoolean::new(
                     // Name
                     "is-dir",
@@ -44,6 +46,7 @@ impl ObjectImpl for GFeed {
                     // Flags
                     ParamFlags::READWRITE,
                 ),
+                // Label
                 ParamSpecString::new(
                     // Name
                     "label",
@@ -64,16 +67,22 @@ impl ObjectImpl for GFeed {
     fn set_property(&self, _obj: &Self::Type, _id: usize, value: &Value, pspec: &ParamSpec) {
         match pspec.name() {
             "is-dir" => {
-                let is_dir: bool = value.get().expect("The value needs to be of type `bool`.");
+                let is_dir: bool = value.get().unwrap_or_else(|e| {
+                    log::error!("Couldn't unwrap the value of the `is-dir` property");
+                    log::debug!("{e}");
+                    false
+                });
                 self.is_dir.replace(is_dir);
             }
             "label" => {
-                let label: String = value
-                    .get()
-                    .expect("The value needs to be of type `String`.");
+                let label: String = value.get().unwrap_or_else(|e| {
+                    log::error!("Couldn't unwrap the value of the `label` property");
+                    log::debug!("{e}");
+                    String::from("")
+                });
                 self.label.replace(label);
             }
-            _ => unimplemented!(),
+            _ => log::error!("Tried to set an unsupported property {value:?}"),
         }
     }
 
@@ -81,7 +90,11 @@ impl ObjectImpl for GFeed {
         match pspec.name() {
             "is-dir" => self.is_dir.get().to_value(),
             "label" => self.label.borrow().to_value(),
-            _ => unimplemented!(),
+            _ => {
+                log::error!("Tried to get an unsupported property");
+                log::debug!("{pspec:?}");
+                "".to_value()
+            }
         }
     }
 }
@@ -92,9 +105,9 @@ glib::wrapper! {
 
 impl Feed {
     /// Create a new feed
-    fn new(is_dir: bool, label: &str) -> Self {
-        glib::Object::new(&[("is-dir", &is_dir), ("label", &label.to_string())])
-            .expect("Could not create a `Feed`.")
+    fn new(is_dir: bool, label: &str) -> Result<Self> {
+        glib::Object::new(&[("is-dir", &is_dir), ("label", &label.to_owned())])
+            .with_context(|| "Could not initialize a feed")
     }
     /// Return `true` if the feed is a directory
     fn is_dir(&self) -> bool {
@@ -130,39 +143,60 @@ impl Tree {
         self.current.borrow().parent.borrow().upgrade().is_none()
     }
     /// Go one level up in the tree
-    fn back(&self) {
+    fn back(&self) -> Result<()> {
+        // Get the new subtree root in the current block
+        // (we need this to avoid the `already borrowed` error at runtime)
         let node = {
+            // Get the current root of the subtree
             let current = self.current.borrow();
-            let parent = &current
-                .parent
-                .borrow()
-                .upgrade()
-                .expect("Tried to go back on the top level");
-            Rc::clone(parent)
+            // Borrow the parent of the current node
+            let parent = current.parent.borrow();
+            // Try to get the parent of this node
+            match parent.upgrade() {
+                Some(node) => Rc::clone(&node),
+                None => bail!("Couldn't get the parent of the current subtree root node"),
+            }
         };
-        *self.current.borrow_mut() = node;
+        // Change the current root of the subtree to this node
+        *self.current.borrow_mut() = Rc::clone(&node);
+        Ok(())
     }
     /// Enter the directory, going one level down in the tree
-    fn enter_dir(&self, position: usize) {
+    fn enter_dir(&self, position: usize) -> Result<()> {
+        // Get the new subtree root in the current block
+        // (we need this to avoid the `already borrowed` error at runtime)
         let node = {
+            // Get the current root of the subtree
             let current = self.current.borrow();
+            // Borrow the children of the current node
             let children = current.children.borrow();
-            Rc::clone(children.get(position).expect("Couldn't get a child node"))
+            // Try to get the child and the position
+            match children.get(position) {
+                Some(node) => Rc::clone(node),
+                None => bail!("Couldn't get a child node in the current subtree"),
+            }
         };
-        *self.current.borrow_mut() = node;
+        // Change the current root of the subtree to this node
+        *self.current.borrow_mut() = Rc::clone(&node);
+        Ok(())
     }
     /// Get a vector of feeds
     fn list(&self) -> Vec<Feed> {
         let mut vec = vec![];
         for child in &*self.current.borrow().children.borrow() {
-            let feed_object = Feed::new(child.is_dir, &child.label);
-            vec.push(feed_object);
+            if let Ok(feed_object) = Feed::new(child.is_dir, &child.label) {
+                vec.push(feed_object);
+            } else {
+                log::error!("Couldn't create a new feed");
+            }
         }
         vec
     }
     /// Append the child to the node
     fn append(parent: &Rc<Node>, child: &Rc<Node>) {
+        // Push the child to the children
         parent.children.borrow_mut().push(Rc::clone(child));
+        // Update the parent of the child node
         *child.parent.borrow_mut() = Rc::downgrade(parent);
     }
 }
@@ -181,9 +215,10 @@ struct Node {
 
 /// Model
 pub struct Model {
-    /// Feeds tree
+    /// Feeds tree (this struct holds all data)
     tree: Tree,
-    /// List Store
+    /// List Store (this struct holds a list of
+    /// items in the current subtree)
     store: gio::ListStore,
 }
 
@@ -204,8 +239,9 @@ impl relm4::Model for Model {
 
 impl ComponentUpdate<AppModel> for Model {
     fn init_model(_parent_model: &AppModel) -> Self {
+        // Initialize the feeds tree
         let tree = Tree::default();
-
+        // Append a fake feed
         Tree::append(
             &tree.root,
             &Rc::new(Node {
@@ -215,7 +251,7 @@ impl ComponentUpdate<AppModel> for Model {
                 parent: RefCell::new(Weak::default()),
             }),
         );
-
+        // Append a fake directory with a fake feed inside
         let feed = Rc::new(Node {
             is_dir: false,
             label: "Feed inside the directory".to_owned(),
@@ -228,15 +264,15 @@ impl ComponentUpdate<AppModel> for Model {
             children: RefCell::new(vec![]),
             parent: RefCell::new(Weak::default()),
         });
-
         Tree::append(&tree.root, &dir);
         Tree::append(&dir, &feed);
-
+        // Initialize the store
         let store = gio::ListStore::new(Feed::static_type());
+        // Append each item from the tree to the store
         for item in tree.list() {
             store.append(&item);
         }
-
+        // Return the model
         Self { tree, store }
     }
 
@@ -250,7 +286,10 @@ impl ComponentUpdate<AppModel> for Model {
         match msg {
             Msg::Back => {
                 // Update the tree
-                self.tree.back();
+                self.tree.back().unwrap_or_else(|e| {
+                    log::error!("Couldn't go back in the tree");
+                    log::debug!("{e}");
+                });
                 // Update the store
                 self.store.remove_all();
                 for item in self.tree.list() {
@@ -259,19 +298,32 @@ impl ComponentUpdate<AppModel> for Model {
                 // If on the top level
                 if self.tree.is_root() {
                     // Hide the back button
-                    send!(parent_sender, AppMsg::FeedsHideBack);
+                    parent_sender
+                        .send(AppMsg::FeedsHideBack)
+                        .unwrap_or_else(|e| {
+                            log::error!("Couldn't send a message to hide the Feeds Back Button");
+                            log::debug!("{e}");
+                        });
                 }
             }
             Msg::EnterDirectory(position) => {
                 // Update the tree
-                self.tree.enter_dir(position);
+                self.tree.enter_dir(position).unwrap_or_else(|e| {
+                    log::error!("Couldn't enter the directory at position {position}");
+                    log::debug!("{e}");
+                });
                 // Update the store
                 self.store.remove_all();
                 for item in self.tree.list() {
                     self.store.append(&item);
                 }
                 // Show the back button
-                send!(parent_sender, AppMsg::FeedsShowBack);
+                parent_sender
+                    .send(AppMsg::FeedsShowBack)
+                    .unwrap_or_else(|e| {
+                        log::error!("Couldn't send a message to show the Feeds Back Button");
+                        log::debug!("{e}");
+                    });
             }
         }
     }
@@ -281,11 +333,10 @@ impl ComponentUpdate<AppModel> for Model {
 fn list_view(model: &Model) -> gtk::ListView {
     let factory = gtk::SignalListItemFactory::new();
     factory.connect_setup(move |_, list_item| {
-        // Create label
+        // Create a label
         let label = gtk::Label::new(None);
         list_item.set_child(Some(&label));
-
-        // Create expression describing `list_item->item->label`
+        // Create expressions describing `list_item -> item -> label`
         let list_item_expression = gtk::ConstantExpression::new(list_item);
         let feed_object_expression = gtk::PropertyExpression::new(
             gtk::ListItem::static_type(),
@@ -297,15 +348,16 @@ fn list_view(model: &Model) -> gtk::ListView {
             Some(&feed_object_expression),
             "label",
         );
-
-        // Bind the object's "label" to the widget's "label"
+        // Bind the labels
         label_expression.bind(&label, "label", Some(&label));
     });
-
+    // Create a filter model
     let filter_model = gtk::FilterListModel::new(Some(&model.store), gtk::Filter::NONE);
+    // Create a sort model
     let sort_model = gtk::SortListModel::new(Some(&filter_model), gtk::Sorter::NONE);
+    // Create a selection model
     let selection_model = gtk::SingleSelection::new(Some(&sort_model));
-
+    // Create a List View
     gtk::ListView::new(Some(&selection_model), Some(&factory))
 }
 
@@ -316,18 +368,32 @@ impl relm4::Widgets<Model, AppModel> for Widgets {
         list_view(model) -> gtk::ListView {
             set_single_click_activate: true,
             connect_activate(sender) => move |list_view, position| {
-                // Get `FeedObject` from model
-                let list_model = list_view.model().expect("The model has to exist.");
-                let feed_object: Feed = list_model
-                    .item(position)
-                    .expect("The item has to exist.")
-                    .downcast()
-                    .expect("The item has to be a `Feed`.");
-                // If the object represents a directory
-                if feed_object.is_dir() {
-                    // Enter it
-                    send!(sender, Msg::EnterDirectory(position.try_into().expect("Couldn't cast `u32` to `usize`")));
-                }
+                // Get the model
+                if let Some(list_model) = list_view.model() {
+                    if let Some(item) = list_model.item(position) {
+                        if let Ok(feed) = item.downcast::<Feed>() {
+                            // If this feed is a directory
+                            if feed.is_dir() {
+                                if let Ok(position) = position.try_into() {
+                                    // Enter it
+                                    sender.send(Msg::EnterDirectory(position))
+                                        .unwrap_or_else(|e| {
+                                            log::error!("Couldn't send a message to enter the directory");
+                                            log::debug!("{e}");
+                                        });
+                                } else {
+                                    log::error!("Couldn't cast u32 to usize");
+                                }
+                            }
+                        } else {
+                            log::error!("Couldn't downcast the object");
+                        }
+                    } else {
+                        log::error!("Couldn't get the item at the position {position}");
+                    }
+                } else {
+                    log::error!("Couldn't unwrap the model");
+                };
             }
         }
     }

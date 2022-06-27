@@ -1,7 +1,7 @@
 //! Feeds Back Button
 
 use gtk::prelude::{ButtonExt, WidgetExt};
-use relm4::{send, ComponentUpdate, Sender};
+use relm4::{ComponentUpdate, Sender};
 
 use super::{AppModel, AppMsg};
 
@@ -42,9 +42,10 @@ impl ComponentUpdate<AppModel> for Model {
         match msg {
             Msg::Show => self.visible = true,
             Msg::Hide => self.visible = false,
-            Msg::Back => {
-                send!(parent_sender, AppMsg::FeedsBack);
-            }
+            Msg::Back => parent_sender.send(AppMsg::FeedsBack).unwrap_or_else(|e| {
+                log::error!("Couldn't send a message to the parent to go back in the Feeds");
+                log::debug!("{e}");
+            }),
         }
     }
 }
@@ -57,7 +58,10 @@ impl relm4::Widgets<Model, AppModel> for Widgets {
             set_visible: watch! { model.visible },
             set_icon_name: "go-previous-symbolic",
             connect_clicked(sender) => move |_| {
-                send!(sender, Msg::Back);
+                sender.send(Msg::Back).unwrap_or_else(|e| {
+                    log::error!("Couldn't send a message to go back in the Feeds");
+                    log::debug!("{e}");
+                });
             },
         }
     }

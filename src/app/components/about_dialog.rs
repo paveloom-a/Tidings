@@ -2,7 +2,7 @@
 
 use gettextrs::gettext;
 use gtk::prelude::{GtkWindowExt, WidgetExt};
-use relm4::{send, ComponentUpdate, Sender};
+use relm4::{ComponentUpdate, Sender};
 
 use super::{AppModel, AppMsg};
 use crate::config::{APP_ID, VERSION};
@@ -62,7 +62,10 @@ impl relm4::Widgets<Model, AppModel> for Widgets {
             set_visible: watch!(model.visible),
             set_website: Some("https://github.com/paveloom-a/Tidings"),
             connect_close_request(sender) => move |_| {
-                send!(sender, Msg::Close);
+                sender.send(Msg::Close).unwrap_or_else(|e| {
+                    log::error!("Couldn't send a message to close the window");
+                    log::debug!("{e}");
+                });
                 gtk::Inhibit(false)
             },
         }

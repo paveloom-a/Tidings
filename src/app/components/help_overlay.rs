@@ -1,8 +1,7 @@
 //! Help Overlay
 
 use gtk::prelude::{GtkWindowExt, WidgetExt};
-use log::error;
-use relm4::{send, ComponentUpdate, Sender};
+use relm4::{ComponentUpdate, Sender};
 
 use super::{AppModel, AppMsg};
 
@@ -30,7 +29,6 @@ impl ComponentUpdate<AppModel> for Model {
     fn init_model(_parent_model: &AppModel) -> Self {
         Self { visible: false }
     }
-
     fn update(
         &mut self,
         msg: Msg,
@@ -47,14 +45,12 @@ impl ComponentUpdate<AppModel> for Model {
 
 /// Get a `ShortcutsWindow`
 fn shortcuts_window() -> gtk::ShortcutsWindow {
-    if let Some(sw) = gtk::Builder::from_resource("/paveloom/apps/tidings/gtk/help-overlay.ui")
-        .object::<gtk::ShortcutsWindow>("help_overlay")
-    {
-        sw
-    } else {
-        error!("Failed to load Shortcuts UI");
-        gtk::builders::ShortcutsWindowBuilder::default().build()
-    }
+    gtk::Builder::from_resource("/paveloom/apps/tidings/gtk/help-overlay.ui")
+        .object("help_overlay")
+        .unwrap_or_else(|| {
+            log::error!("Failed to load Shortcuts UI");
+            gtk::builders::ShortcutsWindowBuilder::default().build()
+        })
 }
 #[allow(clippy::missing_docs_in_private_items)]
 #[relm4_macros::widget(pub)]
@@ -64,7 +60,10 @@ impl relm4::Widgets<Model, AppModel> for Widgets {
             set_transient_for: parent!(Some(&parent_widgets.main_window)),
             set_visible: watch!(model.visible),
             connect_close_request(sender) => move |_| {
-                send!(sender, Msg::Close);
+                sender.send(Msg::Close).unwrap_or_else(|e| {
+                    log::error!("Couldn't send a message to close the window");
+                    log::debug!("{e}");
+                });
                 gtk::Inhibit(false)
             }
         }
