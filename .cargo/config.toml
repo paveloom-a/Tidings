@@ -33,4 +33,10 @@ lint = [
     "clippy::separated_literal_suffix",
     "-A",
     "clippy::integer_arithmetic",
+    "-A",
+    "clippy::self_named_module_files",
+    "-A",
+    "clippy::single-char-lifetime-names",
+    "-A",
+    "clippy::multiple_crate_versions",
 ]

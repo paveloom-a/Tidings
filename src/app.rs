@@ -10,9 +10,7 @@ use relm4::actions::{AccelsPlus, RelmAction, RelmActionGroup};
 use relm4::{AppUpdate, RelmApp, RelmComponent, Sender};
 
 use super::config::{APP_ID, PKGDATADIR, PROFILE, VERSION};
-use components::{
-    about_dialog, feeds_back_button, feeds_list_view, help_overlay, tidings_list_view,
-};
+use components::{about_dialog, feeds, feeds_back_button, help_overlay, tidings_list_view};
 
 /// Model
 struct Model {
@@ -62,7 +60,7 @@ struct AppComponents {
     /// Feeds Back Button
     feeds_back_button: RelmComponent<feeds_back_button::Model, Model>,
     /// Feeds List View
-    feeds_list_view: RelmComponent<feeds_list_view::Model, Model>,
+    feeds: RelmComponent<feeds::Model, Model>,
     /// Tidings List View
     tidings_list_view: RelmComponent<tidings_list_view::Model, Model>,
 }
@@ -92,7 +90,7 @@ impl AppUpdate for Model {
                     false
                 }
             },
-            Msg::FeedsBack => match components.feeds_list_view.send(feeds_list_view::Msg::Back) {
+            Msg::FeedsBack => match components.feeds.send(feeds::Msg::Back) {
                 Ok(_) => true,
                 Err(e) => {
                     log::error!("Couldn't send a message to go back in the Feeds");
@@ -165,7 +163,7 @@ fn main_window(components: &AppComponents) -> adw::ApplicationWindow {
         .expect("Failed to load Tidings Scrolled Window UI");
     // Connect the components to their parents
     feeds_header_bar.pack_start(components.feeds_back_button.root_widget());
-    feeds_scrolled_window.set_child(Some(components.feeds_list_view.root_widget()));
+    feeds_scrolled_window.set_child(Some(components.feeds.root_widget()));
     content_scrolled_window.set_child(Some(components.tidings_list_view.root_widget()));
     // Return Main Window
     main_window
