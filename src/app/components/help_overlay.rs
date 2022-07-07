@@ -44,26 +44,22 @@ impl ComponentUpdate<AppModel> for Model {
 }
 
 /// Get a `ShortcutsWindow`
+#[allow(clippy::expect_used)]
 fn shortcuts_window() -> gtk::ShortcutsWindow {
     gtk::Builder::from_resource("/paveloom/apps/tidings/gtk/help-overlay.ui")
         .object("help_overlay")
-        .unwrap_or_else(|| {
-            log::error!("Failed to load Shortcuts UI");
-            gtk::builders::ShortcutsWindowBuilder::default().build()
-        })
+        .expect("Couldn't build the Help Overlay")
 }
+
 #[allow(clippy::missing_docs_in_private_items)]
 #[relm4_macros::widget(pub)]
 impl relm4::Widgets<Model, AppModel> for Widgets {
     view! {
         shortcuts_window() -> gtk::ShortcutsWindow {
-            set_transient_for: parent!(Some(&parent_widgets.main_window)),
+            set_transient_for: parent!(Some(&parent_widgets.app_window)),
             set_visible: watch!(model.visible),
             connect_close_request(sender) => move |_| {
-                sender.send(Msg::Close).unwrap_or_else(|e| {
-                    log::error!("Couldn't send a message to close the window");
-                    log::debug!("{e}");
-                });
+                sender.send(Msg::Close).ok();
                 gtk::Inhibit(false)
             }
         }

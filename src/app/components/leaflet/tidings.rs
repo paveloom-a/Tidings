@@ -2,10 +2,10 @@
 
 mod list;
 
-use gtk::prelude::{Cast, ListModelExt, ObjectExt, StaticType};
+use gtk::prelude::{BoxExt, Cast, ListModelExt, ObjectExt, OrientableExt, StaticType, WidgetExt};
 use relm4::{ComponentUpdate, Sender};
 
-use super::{AppModel, AppMsg};
+use crate::app::{OpenAboutDialog, OpenHelpOverlay};
 use list::{Item, List};
 
 /// Model
@@ -14,14 +14,17 @@ pub struct Model {
     list: List,
 }
 
+/// Messages
+pub enum Msg {}
+
 impl relm4::Model for Model {
-    type Msg = ();
+    type Msg = Msg;
     type Widgets = Widgets;
     type Components = ();
 }
 
-impl ComponentUpdate<AppModel> for Model {
-    fn init_model(_parent_model: &AppModel) -> Self {
+impl ComponentUpdate<super::Model> for Model {
+    fn init_model(_parent_model: &super::Model) -> Self {
         // Initialize a list
         let list = List::new(Item::static_type());
         // Add fake tidings with numbers as labels
@@ -41,10 +44,10 @@ impl ComponentUpdate<AppModel> for Model {
     }
     fn update(
         &mut self,
-        _msg: (),
+        _msg: Msg,
         _components: &(),
-        _sender: Sender<()>,
-        _parent_sender: Sender<AppMsg>,
+        _sender: Sender<Msg>,
+        _parent_sender: Sender<super::Msg>,
     ) {
     }
 }
@@ -113,32 +116,66 @@ fn list_view(model: &Model) -> gtk::ListView {
     gtk::ListView::new(Some(&selection_model), Some(&factory))
 }
 
+/// Connect the activate event of the List View
+fn list_view_connect_activate(_sender: &Sender<Msg>, list_view: &gtk::ListView, position: u32) {
+    // Get the model
+    if let Some(model) = list_view.model() {
+        // Get the item at the position
+        if let Some(item) = model.item(position) {
+            // Downcast the object
+            if let Ok(item) = item.downcast::<Item>() {
+                // Update the label
+                item.update_string();
+            } else {
+                log::error!("Couldn't downcast the object");
+            }
+        } else {
+            log::error!("Couldn't get the item at the position {position}");
+        }
+    } else {
+        log::error!("Couldn't unwrap the model");
+    }
+}
+
 #[allow(clippy::missing_docs_in_private_items)]
 #[relm4_macros::widget(pub)]
-impl relm4::Widgets<Model, AppModel> for Widgets {
+impl relm4::Widgets<Model, super::Model> for Widgets {
     view! {
-        list_view(model) -> gtk::ListView {
-            set_single_click_activate: true,
-            connect_activate(sender) => move |list_view, position| {
-                let _sender = &sender;
-                // Get the model
-                if let Some(model) = list_view.model() {
-                    // Get the item at the position
-                    if let Some(item) = model.item(position) {
-                        // Downcast the object
-                        if let Ok(item) = item.downcast::<Item>() {
-                            // Update the label
-                            item.update_string();
-                        } else {
-                            log::error!("Couldn't downcast the object");
-                        }
-                    } else {
-                        log::error!("Couldn't get the item at the position {position}");
+        // Box
+        gtk::Box {
+            set_width_request: 365,
+            set_orientation: gtk::Orientation::Vertical,
+            // Header Bar
+            append: header_bar = &adw::HeaderBar {
+                // Title
+                set_title_widget = Some(&adw::WindowTitle) {
+                    set_title: "Tidings"
+                },
+                // Menu Button
+                pack_end = &gtk::MenuButton {
+                    set_icon_name: "open-menu-symbolic",
+                    set_menu_model: Some(&main_menu),
+                },
+            },
+            // Scrolled Window
+            append = &gtk::ScrolledWindow {
+                set_hscrollbar_policy: gtk::PolicyType::Never,
+                set_hexpand: true,
+                set_vexpand: true,
+                // List View
+                set_child = Some(&list_view(model) -> gtk::ListView) {
+                    set_single_click_activate: true,
+                    connect_activate(sender) => move |list_view, position| {
+                        list_view_connect_activate(&sender, list_view, position);
                     }
-                } else {
-                    log::error!("Couldn't unwrap the model");
                 }
             }
+        }
+    }
+    menu! {
+        main_menu: {
+            "Keyboard Shortcuts" => OpenHelpOverlay,
+            "About Tidings" => OpenAboutDialog,
         }
     }
 }

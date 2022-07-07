@@ -31,7 +31,6 @@ impl ComponentUpdate<AppModel> for Model {
     fn init_model(_parent_model: &AppModel) -> Self {
         Self { visible: false }
     }
-
     fn update(
         &mut self,
         msg: Msg,
@@ -56,16 +55,13 @@ impl relm4::Widgets<Model, AppModel> for Widgets {
             set_license_type: gtk::License::Gpl30Only,
             set_logo_icon_name: Some(APP_ID),
             set_modal: true,
-            set_transient_for: parent!(Some(&parent_widgets.main_window)),
+            set_transient_for: parent!(Some(&parent_widgets.app_window)),
             set_translator_credits: Some(&gettext("translator-credits")),
             set_version: Some(VERSION),
             set_visible: watch!(model.visible),
             set_website: Some("https://github.com/paveloom-a/Tidings"),
             connect_close_request(sender) => move |_| {
-                sender.send(Msg::Close).unwrap_or_else(|e| {
-                    log::error!("Couldn't send a message to close the window");
-                    log::debug!("{e}");
-                });
+                sender.send(Msg::Close).ok();
                 gtk::Inhibit(false)
             },
         }
