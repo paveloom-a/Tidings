@@ -85,12 +85,12 @@
               </object>
             </child>
             <child>
-              <object class="GtkScrolledWindow" id="content_scrolled_window">
+              <object class="GtkScrolledWindow" id="tidings_scrolled_window">
                 <property name="hscrollbar-policy">never</property>
                 <property name="vexpand">True</property>
                 <property name="hexpand">True</property>
                 <child>
-                  <object class="GtkListView" id="content_list_view">
+                  <object class="GtkListView" id="tidings_list_view">
                     <property name="single_click_activate">True</property>
                   </object>
                 </child>

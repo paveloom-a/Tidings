@@ -1,96 +1,17 @@
-//! Tidings List View
+//! Tidings
 
-use anyhow::{Context, Result};
-use gtk::glib::{ParamFlags, ParamSpec, ParamSpecString, Value};
-use gtk::prelude::{Cast, ListModelExt, ObjectExt, StaticType, ToValue};
-use gtk::subclass::prelude::{ObjectImpl, ObjectSubclass};
-use gtk::{gio, glib};
-use once_cell::sync::Lazy;
+mod list;
+
+use gtk::prelude::{Cast, ListModelExt, ObjectExt, StaticType};
 use relm4::{ComponentUpdate, Sender};
-use std::cell::RefCell;
 
 use super::{AppModel, AppMsg};
-
-/// Object holding the state
-#[derive(Default)]
-pub struct GTiding {
-    /// Label
-    label: RefCell<String>,
-}
-
-#[glib::object_subclass]
-impl ObjectSubclass for GTiding {
-    const NAME: &'static str = "Tiding";
-    type Type = Tiding;
-    type ParentType = glib::Object;
-}
-
-impl ObjectImpl for GTiding {
-    fn properties() -> &'static [ParamSpec] {
-        /// Properties
-        static PROPERTIES: Lazy<Vec<ParamSpec>> = Lazy::new(|| {
-            vec![
-                // Label of the tiding
-                ParamSpecString::new(
-                    // Name
-                    "label",
-                    // Nickname
-                    "label",
-                    // Short description
-                    "label",
-                    // Default value
-                    Some(""),
-                    // Flags
-                    ParamFlags::READWRITE,
-                ),
-            ]
-        });
-        &PROPERTIES
-    }
-    fn set_property(&self, _obj: &Self::Type, _id: usize, value: &Value, pspec: &ParamSpec) {
-        if pspec.name() == "label" {
-            let label: String = value.get().unwrap_or_else(|e| {
-                log::error!("Couldn't unwrap the value of the `label` property");
-                log::debug!("{e}");
-                String::from("")
-            });
-            self.label.replace(label);
-        } else {
-            log::error!("Tried to set an unsupported property {value:?}");
-        }
-    }
-    fn property(&self, _obj: &Self::Type, _id: usize, pspec: &ParamSpec) -> Value {
-        if pspec.name() == "label" {
-            self.label.borrow().to_value()
-        } else {
-            log::error!("Tried to get an unsupported property");
-            log::debug!("{pspec:?}");
-            "".to_value()
-        }
-    }
-}
-
-glib::wrapper! {
-    pub struct Tiding(ObjectSubclass<GTiding>);
-}
-
-impl Tiding {
-    /// Initialize a tiding from the label
-    pub fn new(label: &str) -> Result<Self> {
-        glib::Object::new(&[("label", &label.to_owned())])
-            .with_context(|| "Couldn't initialize a tiding")
-    }
-    /// Update the string
-    pub fn update_string(self) {
-        let label: String = self.property("label");
-        self.set_property("label", format!("{}!", label));
-    }
-}
+use list::{Item, List};
 
 /// Model
 pub struct Model {
-    /// List Store
-    store: gio::ListStore,
+    /// List of items
+    list: List,
 }
 
 impl relm4::Model for Model {
@@ -101,13 +22,14 @@ impl relm4::Model for Model {
 
 impl ComponentUpdate<AppModel> for Model {
     fn init_model(_parent_model: &AppModel) -> Self {
-        let store = gio::ListStore::new(Tiding::static_type());
+        // Initialize a list
+        let list = List::new(Item::static_type());
         // Add fake tidings with numbers as labels
         for number in 0_usize..=10_usize {
             let label = &number.to_string();
-            match Tiding::new(label) {
+            match Item::new(label) {
                 Ok(t) => {
-                    store.append(&t);
+                    list.append(&t);
                 }
                 Err(e) => {
                     log::error!("Couldn't create a tiding from the label {label}");
@@ -115,7 +37,7 @@ impl ComponentUpdate<AppModel> for Model {
                 }
             }
         }
-        Self { store }
+        Self { list }
     }
     fn update(
         &mut self,
@@ -143,7 +65,7 @@ fn list_view(model: &Model) -> gtk::ListView {
             "item",
         );
         let label_expression = gtk::PropertyExpression::new(
-            Tiding::static_type(),
+            Item::static_type(),
             Some(&feed_object_expression),
             "label",
         );
@@ -153,9 +75,9 @@ fn list_view(model: &Model) -> gtk::ListView {
     // Prepare a filter
     let filter = gtk::CustomFilter::new(move |obj| {
         // Downcast the object
-        if let Some(tiding) = obj.downcast_ref::<Tiding>() {
+        if let Some(item) = obj.downcast_ref::<Item>() {
             // Get the label
-            let _label: String = tiding.property("label");
+            let _label: String = item.property("label");
             true
         } else {
             log::error!("Couldn't unwrap the object in the filter");
@@ -163,15 +85,15 @@ fn list_view(model: &Model) -> gtk::ListView {
         }
     });
     // Create a filter model
-    let filter_model = gtk::FilterListModel::new(Some(&model.store), Some(&filter));
+    let filter_model = gtk::FilterListModel::new(Some(&model.list), Some(&filter));
     // Prepare a sorter
     let sorter = gtk::CustomSorter::new(move |obj_1, obj_2| {
         // Downcast the objects
-        if let Some(tiding_1) = obj_1.downcast_ref::<Tiding>() {
-            if let Some(tiding_2) = obj_2.downcast_ref::<Tiding>() {
+        if let Some(item_1) = obj_1.downcast_ref::<Item>() {
+            if let Some(item_2) = obj_2.downcast_ref::<Item>() {
                 // Get the labels
-                let label_1: String = tiding_1.property("label");
-                let label_2: String = tiding_2.property("label");
+                let label_1: String = item_1.property("label");
+                let label_2: String = item_2.property("label");
                 // Reverse the sorting order (large strings come first)
                 label_2.cmp(&label_1).into()
             } else {
@@ -204,9 +126,9 @@ impl relm4::Widgets<Model, AppModel> for Widgets {
                     // Get the item at the position
                     if let Some(item) = model.item(position) {
                         // Downcast the object
-                        if let Ok(tiding) = item.downcast::<Tiding>() {
+                        if let Ok(item) = item.downcast::<Item>() {
                             // Update the label
-                            tiding.update_string();
+                            item.update_string();
                         } else {
                             log::error!("Couldn't downcast the object");
                         }

@@ -3,7 +3,6 @@
 mod list;
 mod tree;
 
-use gtk::gio;
 use gtk::prelude::{Cast, ListModelExt, StaticType};
 use relm4::{ComponentUpdate, Sender};
 
@@ -56,7 +55,7 @@ impl ComponentUpdate<AppModel> for Model {
             tree.insert(dir_index, feed);
         }
         // Initialize the list
-        let mut list = gio::ListStore::new(Item::static_type());
+        let mut list = List::new(Item::static_type());
         // Update the list
         list.update(&tree);
         // Return the model
@@ -144,9 +143,9 @@ impl relm4::Widgets<Model, AppModel> for Widgets {
             connect_activate(sender) => move |list_view, position| {
                 // Get the model
                 if let Some(list_model) = list_view.model() {
-                    // Get the list item as a GObject
+                    // Get the item at the position
                     if let Some(item) = list_model.item(position) {
-                        // Cast it to the Rust object
+                        // Downcast the object
                         if let Ok(item) = item.downcast::<Item>() {
                             // If this item is a directory
                             if item.is_dir() {

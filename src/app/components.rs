@@ -6,4 +6,4 @@ pub mod about_dialog;
 pub mod feeds;
 pub mod feeds_back_button;
 pub mod help_overlay;
-pub mod tidings_list_view;
+pub mod tidings;

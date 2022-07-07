@@ -10,7 +10,7 @@ use relm4::actions::{AccelsPlus, RelmAction, RelmActionGroup};
 use relm4::{AppUpdate, RelmApp, RelmComponent, Sender};
 
 use super::config::{APP_ID, PKGDATADIR, PROFILE, VERSION};
-use components::{about_dialog, feeds, feeds_back_button, help_overlay, tidings_list_view};
+use components::{about_dialog, feeds, feeds_back_button, help_overlay, tidings};
 
 /// Model
 struct Model {
@@ -59,10 +59,10 @@ struct AppComponents {
     help_overlay: RelmComponent<help_overlay::Model, Model>,
     /// Feeds Back Button
     feeds_back_button: RelmComponent<feeds_back_button::Model, Model>,
-    /// Feeds List View
+    /// Feeds
     feeds: RelmComponent<feeds::Model, Model>,
-    /// Tidings List View
-    tidings_list_view: RelmComponent<tidings_list_view::Model, Model>,
+    /// Tidings
+    tidings: RelmComponent<tidings::Model, Model>,
 }
 
 impl relm4::Model for Model {
@@ -158,13 +158,13 @@ fn main_window(components: &AppComponents) -> adw::ApplicationWindow {
         .object("feeds_scrolled_window")
         .expect("Failed to load Feeds Scrolled Window UI");
     // Get the Tidings Scrolled Window
-    let content_scrolled_window: gtk::ScrolledWindow = builder
-        .object("content_scrolled_window")
+    let tidings_scrolled_window: gtk::ScrolledWindow = builder
+        .object("tidings_scrolled_window")
         .expect("Failed to load Tidings Scrolled Window UI");
     // Connect the components to their parents
     feeds_header_bar.pack_start(components.feeds_back_button.root_widget());
     feeds_scrolled_window.set_child(Some(components.feeds.root_widget()));
-    content_scrolled_window.set_child(Some(components.tidings_list_view.root_widget()));
+    tidings_scrolled_window.set_child(Some(components.tidings.root_widget()));
     // Return Main Window
     main_window
 }
