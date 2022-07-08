@@ -18,8 +18,8 @@ pub struct Model {
     list: List,
     /// Is the back button visible?
     back_button_visible: bool,
-    /// Are the folded state header decorations applied?
-    folded: bool,
+    /// Are the end buttons visible in the header bar?
+    end_buttons_visible: bool,
 }
 
 /// Messages
@@ -29,10 +29,10 @@ pub enum Msg {
     /// Enter the directory at the position,
     /// going one level down in the tree of feeds
     EnterDirectory(usize),
-    /// Apply the folded state header decorations
-    Fold,
-    /// Apply the unfolded state header decorations
-    Unfold,
+    /// Show end buttons in the header bar
+    ShowEndButtons,
+    /// Hide end buttons in the header bar
+    HideEndButtons,
 }
 
 impl relm4::Model for Model {
@@ -71,7 +71,7 @@ impl ComponentUpdate<super::Model> for Model {
             tree,
             list,
             back_button_visible: false,
-            folded: false,
+            end_buttons_visible: false,
         }
     }
     fn update(
@@ -101,11 +101,11 @@ impl ComponentUpdate<super::Model> for Model {
                 // Show the back button
                 self.back_button_visible = true;
             }
-            Msg::Fold => {
-                self.folded = true;
+            Msg::ShowEndButtons => {
+                self.end_buttons_visible = true;
             }
-            Msg::Unfold => {
-                self.folded = false;
+            Msg::HideEndButtons => {
+                self.end_buttons_visible = false;
             }
         }
     }
@@ -176,15 +176,19 @@ impl relm4::Widgets<Model, super::Model> for Widgets {
             set_hexpand: true,
             // Header Bar
             append = &adw::HeaderBar {
-                set_show_start_title_buttons: watch! { model.folded },
-                set_show_end_title_buttons: watch! { model.folded },
+                set_show_start_title_buttons: watch!(
+                    model.end_buttons_visible
+                ),
+                set_show_end_title_buttons: watch!(
+                    model.end_buttons_visible
+                ),
                 // Title
                 set_title_widget = Some(&adw::WindowTitle) {
                     set_title: "Feeds"
                 },
                 // Go Back Button
                 pack_start = &gtk::Button {
-                    set_visible: watch! { model.back_button_visible },
+                    set_visible: watch!(model.back_button_visible),
                     set_icon_name: "go-previous-symbolic",
                     connect_clicked(sender) => move |_| {
                         sender.send(Msg::Back).ok();
@@ -192,7 +196,7 @@ impl relm4::Widgets<Model, super::Model> for Widgets {
                 },
                 // Menu Button
                 pack_end = &gtk::MenuButton {
-                    set_visible: watch! { model.folded },
+                    set_visible: watch!(model.end_buttons_visible),
                     set_icon_name: "open-menu-symbolic",
                     set_menu_model: Some(&main_menu),
                 },

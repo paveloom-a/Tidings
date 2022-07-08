@@ -3,7 +3,7 @@
 mod components;
 
 use adw::prelude::{AdwApplicationWindowExt, GtkWindowExt};
-use anyhow::{Context, Result};
+use anyhow::Result;
 use gtk::prelude::{SettingsExt, WidgetExt};
 use gtk::{gdk, gio};
 use relm4::actions::{AccelsPlus, RelmAction, RelmActionGroup};
@@ -18,30 +18,31 @@ struct Model {
     settings: gio::Settings,
 }
 
+/// Settings
+struct Settings {
+    /// Width of the application window
+    width: i32,
+    /// Height of the application window
+    height: i32,
+    /// Is the application window maximized?
+    is_maximized: bool,
+}
+
 impl Model {
     /// Save the settings
-    fn save_settings(&self, width: i32, height: i32, is_maximized: bool) -> Result<()> {
+    fn save_settings(&self, settings: &Settings) -> Result<()> {
+        self.settings.set_int("window-width", settings.width)?;
+        self.settings.set_int("window-height", settings.height)?;
         self.settings
-            .set_int("window-width", width)
-            .with_context(|| "Couldn't save the width of the window")?;
-        self.settings
-            .set_int("window-height", height)
-            .with_context(|| "Couldn't save the height of the window")?;
-        self.settings
-            .set_boolean("is-maximized", is_maximized)
-            .with_context(|| "Couldn't save the `is-maximized` property of the window")?;
+            .set_boolean("is-maximized", settings.is_maximized)?;
         Ok(())
     }
 }
 
 /// Messages
 enum Msg {
-    /// Open About Dialog
-    OpenAboutDialog,
-    /// Open Help Overlay
-    OpenHelpOverlay,
     /// Close the application, saving the settings
-    Close(i32, i32, bool),
+    Close(Settings),
 }
 
 /// Components
@@ -62,19 +63,9 @@ impl relm4::Model for Model {
 }
 
 impl AppUpdate for Model {
-    fn update(&mut self, msg: Msg, components: &Components, _sender: Sender<Msg>) -> bool {
+    fn update(&mut self, msg: Msg, _components: &Components, _sender: Sender<Msg>) -> bool {
         match msg {
-            Msg::OpenAboutDialog => components
-                .about_dialog
-                .send(about_dialog::Msg::Open)
-                .is_ok(),
-            Msg::OpenHelpOverlay => components
-                .help_overlay
-                .send(help_overlay::Msg::Open)
-                .is_ok(),
-            Msg::Close(width, height, is_maximized) => {
-                self.save_settings(width, height, is_maximized).is_ok()
-            }
+            Msg::Close(settings) => self.save_settings(&settings).is_ok(),
         }
     }
 }
@@ -89,7 +80,15 @@ impl relm4::Widgets<Model, ()> for Widgets {
             set_default_height: model.settings.int("window-height"),
             set_maximized: model.settings.boolean("is-maximized"),
             connect_close_request(sender) => move |w| {
-                let msg = Msg::Close(w.default_width(), w.default_height(), w.is_maximized());
+                // Prepare settings
+                let settings = Settings {
+                    width: w.default_width(),
+                    height: w.default_height(),
+                    is_maximized: w.is_maximized(),
+                };
+                // Prepare a message
+                let msg = Msg::Close(settings);
+                // Send the message
                 sender.send(msg).ok();
                 gtk::Inhibit(false)
             },
@@ -103,30 +102,23 @@ impl relm4::Widgets<Model, ()> for Widgets {
         let application_actions = RelmActionGroup::<ApplicationActionGroup>::new();
         // Create the Open Help Overlay action
         let open_help_overlay_action: RelmAction<OpenHelpOverlay> = RelmAction::new_stateless({
-            let sender = sender.clone();
+            let sender = components.help_overlay.sender();
             move |_| {
-                sender.send(Msg::OpenHelpOverlay).ok();
+                sender.send(help_overlay::Msg::Open).ok();
             }
         });
         // Create the Open About Dialog action
         let open_about_dialog_action: RelmAction<OpenAboutDialog> = RelmAction::new_stateless({
-            let sender = sender.clone();
+            let sender = components.about_dialog.sender();
             move |_| {
-                sender.send(Msg::OpenAboutDialog).ok();
+                sender.send(about_dialog::Msg::Open).ok();
             }
         });
         // Create the Close Application action
         let close_application_action: RelmAction<CloseApplication> = RelmAction::new_stateless({
-            let app_window = app_window.clone();
+            let w = app_window.clone();
             move |_| {
-                // Prepare a message
-                let msg = Msg::Close(
-                    app_window.default_width(),
-                    app_window.default_height(),
-                    app_window.is_maximized(),
-                );
-                // Send it
-                sender.send(msg).ok();
+                w.close();
             }
         });
         // Add the actions to the according group
