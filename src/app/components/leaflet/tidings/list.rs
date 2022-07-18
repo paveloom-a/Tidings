@@ -1,6 +1,5 @@
 //! List of items
 
-use anyhow::{Context, Result};
 use gtk::glib::{ParamFlags, ParamSpec, ParamSpecString, Value};
 use gtk::prelude::{ObjectExt, ToValue};
 use gtk::subclass::prelude::{ObjectImpl, ObjectSubclass};
@@ -49,23 +48,15 @@ impl ObjectImpl for GItem {
     }
     fn set_property(&self, _obj: &Self::Type, _id: usize, value: &Value, pspec: &ParamSpec) {
         if pspec.name() == "label" {
-            let label: String = value.get().unwrap_or_else(|e| {
-                log::error!("Couldn't unwrap the value of the `label` property");
-                log::debug!("{e}");
-                String::from("")
-            });
-            self.label.replace(label);
-        } else {
-            log::error!("Tried to set an unsupported property {value:?}");
+            if let Ok(label) = value.get() {
+                self.label.replace(label);
+            }
         }
     }
     fn property(&self, _obj: &Self::Type, _id: usize, pspec: &ParamSpec) -> Value {
-        if pspec.name() == "label" {
-            self.label.borrow().to_value()
-        } else {
-            log::error!("Tried to get an unsupported property");
-            log::debug!("{pspec:?}");
-            "".to_value()
+        match pspec.name() {
+            "label" => self.label.borrow().to_value(),
+            _ => "".to_value(),
         }
     }
 }
@@ -76,9 +67,8 @@ glib::wrapper! {
 
 impl Item {
     /// Initialize a tiding from the label
-    pub fn new(label: &str) -> Result<Self> {
-        glib::Object::new(&[("label", &label.to_owned())])
-            .with_context(|| "Couldn't initialize a tiding")
+    pub fn new(label: &str) -> Option<Self> {
+        glib::Object::new(&[("label", &label.to_owned())]).ok()
     }
     /// Update the string
     pub fn update_string(self) {

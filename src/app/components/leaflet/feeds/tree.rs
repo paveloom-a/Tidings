@@ -46,7 +46,7 @@ impl Default for Tree {
 }
 
 impl Tree {
-    /// Insert an item in the tree, return the index
+    /// Insert an item into the tree, return the index
     pub(super) fn insert(&mut self, parent_index: Index, node: Node) -> Option<Index> {
         // If the specified parent actually exists
         if self.arena.get(parent_index).is_some() {
@@ -119,24 +119,13 @@ impl Tree {
             let mut vec = vec![];
             // For each index of a child
             for &index in children_indices {
-                // Cast the node to the object
-                // and, if that's successful, push
-                match self.arena.get(index) {
-                    Some(&Node::Directory { ref label, .. }) => {
-                        if let Ok(feed) = Item::new(true, label) {
-                            vec.push(feed);
-                        } else {
-                            log::error!("Couldn't create a new feed");
-                        }
+                // Get the node
+                if let Some(node) = self.arena.get(index) {
+                    // Cast the node to the object
+                    if let Some(item) = Option::<Item>::from(node) {
+                        // If that's successful, push
+                        vec.push(item);
                     }
-                    Some(&Node::Feed { ref label, .. }) => {
-                        if let Ok(feed) = Item::new(false, label) {
-                            vec.push(feed);
-                        } else {
-                            log::error!("Couldn't create a new feed");
-                        }
-                    }
-                    _ => (),
                 }
             }
             return Some(vec);

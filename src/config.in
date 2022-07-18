@@ -6,8 +6,6 @@ pub const APP_ID: &str = @app_id@;
 pub const DOMAINNAME: &str = @domainname@;
 /// Locale directory
 pub const LOCALEDIR: &str = @localedir@;
-/// Data directory
-pub const PKGDATADIR: &str = @pkgdatadir@;
 /// Profile
 pub const PROFILE: &str = @profile@;
 /// Resources file

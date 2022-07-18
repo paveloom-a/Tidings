@@ -4,12 +4,6 @@ runtime-version: "42"
 sdk: org.gnome.Sdk
 sdk-extensions:
   - org.freedesktop.Sdk.Extension.rust-stable
-command: tidings
-finish-args:
-  - --socket=wayland
-  - --socket=fallback-x11
-  - --device=dri
-  - --talk-name=org.a11y.Bus
 build-options:
   append-path: /usr/lib/sdk/rust-stable/bin
   build-args:
@@ -17,6 +11,12 @@ build-options:
   test-args:
     - --socket=x11
     - --share=network
+command: tidings
+finish-args:
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  - --talk-name=org.a11y.Bus
 modules:
   - name: tidings
     buildsystem: meson

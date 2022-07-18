@@ -1,6 +1,5 @@
 //! List of items
 
-use anyhow::{Context, Result};
 use gtk::glib::{ParamFlags, ParamSpec, ParamSpecBoolean, ParamSpecString, Value};
 use gtk::prelude::{ListModelExt, ObjectExt, ToValue};
 use gtk::subclass::prelude::{ObjectImpl, ObjectSubclass};
@@ -9,7 +8,7 @@ use once_cell::sync::Lazy;
 
 use std::cell::{Cell, RefCell};
 
-use super::Tree;
+use super::{Node, Tree};
 
 /// List of items
 pub(super) type List = gio::ListStore;
@@ -68,33 +67,23 @@ impl ObjectImpl for GItem {
     fn set_property(&self, _obj: &Self::Type, _id: usize, value: &Value, pspec: &ParamSpec) {
         match pspec.name() {
             "is-dir" => {
-                let is_dir: bool = value.get().unwrap_or_else(|e| {
-                    log::error!("Couldn't unwrap the value of the `is-dir` property");
-                    log::debug!("{e}");
-                    false
-                });
-                self.is_dir.replace(is_dir);
+                if let Ok(is_dir) = value.get() {
+                    self.is_dir.replace(is_dir);
+                }
             }
             "label" => {
-                let label: String = value.get().unwrap_or_else(|e| {
-                    log::error!("Couldn't unwrap the value of the `label` property");
-                    log::debug!("{e}");
-                    String::from("")
-                });
-                self.label.replace(label);
+                if let Ok(label) = value.get() {
+                    self.label.replace(label);
+                }
             }
-            _ => log::error!("Tried to set an unsupported property {value:?}"),
+            _ => (),
         }
     }
     fn property(&self, _obj: &Self::Type, _id: usize, pspec: &ParamSpec) -> Value {
         match pspec.name() {
             "is-dir" => self.is_dir.get().to_value(),
             "label" => self.label.borrow().to_value(),
-            _ => {
-                log::error!("Tried to get an unsupported property");
-                log::debug!("{pspec:?}");
-                "".to_value()
-            }
+            _ => "".to_value(),
         }
     }
 }
@@ -106,13 +95,21 @@ glib::wrapper! {
 
 impl Item {
     /// Create a new feed
-    pub(super) fn new(is_dir: bool, label: &str) -> Result<Self> {
-        glib::Object::new(&[("is-dir", &is_dir), ("label", &label.to_owned())])
-            .with_context(|| "Could not initialize a feed")
+    pub(super) fn new(is_dir: bool, label: &str) -> Option<Self> {
+        glib::Object::new(&[("is-dir", &is_dir), ("label", &label.to_owned())]).ok()
     }
     /// Return `true` if the feed is a directory
     pub(super) fn is_dir(&self) -> bool {
         self.property("is-dir")
+    }
+}
+
+impl From<&Node> for Option<Item> {
+    fn from(node: &Node) -> Self {
+        match *node {
+            Node::Directory { ref label, .. } => Item::new(true, label),
+            Node::Feed { ref label, .. } => Item::new(false, label),
+        }
     }
 }
 

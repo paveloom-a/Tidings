@@ -2,6 +2,9 @@
 
 # This script builds the application and runs it
 
+# Exit when any command fails
+set -e
+
 # Name of the application
 NAME=tidings
 

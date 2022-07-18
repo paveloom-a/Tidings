@@ -11,6 +11,20 @@
             <property name="title" translatable="yes" context="shortcut window">General</property>
             <child>
               <object class="GtkShortcutsShortcut">
+                <property name="title" translatable="yes" context="shortcut window">Add New Feed</property>
+                <property name="action-name">win.show-add-feed-dialog</property>
+                <property name="accelerator">&lt;primary&gt;A</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkShortcutsShortcut">
+                <property name="title" translatable="yes" context="shortcut window">Add New Directory</property>
+                <property name="action-name">win.show-add-directory-dialog</property>
+                <property name="accelerator">&lt;primary&gt;D</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkShortcutsShortcut">
                 <property name="title" translatable="yes" context="shortcut window">Show Shortcuts</property>
                 <property name="action-name">win.show-help-overlay</property>
                 <property name="accelerator">&lt;primary&gt;question</property>

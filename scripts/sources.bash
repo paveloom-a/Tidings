@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Allow recursive glob patterns
-    shopt -s globstar
+shopt -s globstar
 
 # This script creates a list of source files
 

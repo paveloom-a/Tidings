@@ -4,6 +4,14 @@ runtime-version: "42"
 sdk: org.gnome.Sdk
 sdk-extensions:
   - org.freedesktop.Sdk.Extension.rust-stable
+  - org.freedesktop.Sdk.Extension.llvm14
+build-options:
+  append-path: /usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/llvm14/bin
+  build-args:
+    - --share=network
+  test-args:
+    - --socket=x11
+    - --share=network
 command: tidings
 finish-args:
   - --socket=wayland
@@ -13,13 +21,6 @@ finish-args:
   - --env=RUST_BACKTRACE=full
   - --env=RUST_LOG=tidings=debug
   - --env=G_MESSAGES_DEBUG=all
-build-options:
-  append-path: /usr/lib/sdk/rust-stable/bin
-  build-args:
-    - --share=network
-  test-args:
-    - --socket=x11
-    - --share=network
 modules:
   - name: tidings
     buildsystem: meson

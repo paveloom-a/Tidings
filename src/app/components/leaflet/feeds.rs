@@ -4,9 +4,12 @@ mod list;
 mod tree;
 
 use gtk::prelude::{BoxExt, ButtonExt, Cast, ListModelExt, OrientableExt, StaticType, WidgetExt};
+use relm4::actions::ActionName;
 use relm4::{ComponentUpdate, Sender};
 
-use crate::app::{OpenAboutDialog, OpenHelpOverlay};
+use crate::app::actions::{
+    ShowAboutDialog, ShowAddDirectoryDialog, ShowAddFeedDialog, ShowHelpOverlay,
+};
 use list::{Item, List, UpdateList};
 use tree::{Node, Tree};
 
@@ -33,6 +36,16 @@ pub enum Msg {
     ShowEndButtons,
     /// Hide end buttons in the header bar
     HideEndButtons,
+    /// Add a feed
+    AddFeed {
+        /// Label
+        label: String,
+    },
+    /// Add a directory
+    AddDirectory {
+        /// Label
+        label: String,
+    },
 }
 
 impl relm4::Model for Model {
@@ -44,24 +57,7 @@ impl relm4::Model for Model {
 impl ComponentUpdate<super::Model> for Model {
     fn init_model(_parent_model: &super::Model) -> Self {
         // Initialize the feeds tree
-        let mut tree = Tree::default();
-        // Insert a fake feed
-        let feed = Node::Feed {
-            label: "Feed".to_owned(),
-        };
-        tree.insert(tree.current, feed);
-        // Insert a fake directory with a fake feed inside
-        let dir = Node::Directory {
-            label: "Directory".to_owned(),
-            children: vec![],
-            parent: Some(tree.current),
-        };
-        let feed = Node::Feed {
-            label: "Feed inside the directory".to_owned(),
-        };
-        if let Some(dir_index) = tree.insert(tree.current, dir) {
-            tree.insert(dir_index, feed);
-        }
+        let tree = Tree::default();
         // Initialize the list
         let mut list = List::new(Item::static_type());
         // Update the list
@@ -106,6 +102,30 @@ impl ComponentUpdate<super::Model> for Model {
             }
             Msg::HideEndButtons => {
                 self.end_buttons_visible = false;
+            }
+            Msg::AddFeed { label } => {
+                // Create a new node
+                let node = Node::Feed { label };
+                // Append the new item to the end of the list
+                if let Some(item) = Option::<Item>::from(&node) {
+                    self.list.append(&item);
+                }
+                // Insert the node into the tree
+                self.tree.insert(self.tree.current, node);
+            }
+            Msg::AddDirectory { label } => {
+                // Create a new node
+                let node = Node::Directory {
+                    label,
+                    children: vec![],
+                    parent: Some(self.tree.current),
+                };
+                // Append the new item to the end of the list
+                if let Some(item) = Option::<Item>::from(&node) {
+                    self.list.append(&item);
+                }
+                // Insert the node into the tree
+                self.tree.insert(self.tree.current, node);
             }
         }
     }
@@ -165,6 +185,13 @@ fn list_view_connect_activate(sender: &Sender<Msg>, list_view: &gtk::ListView, p
     }
 }
 
+/// Create a Split Button with an action on an activate event
+fn split_button() -> adw::SplitButton {
+    adw::SplitButton::builder()
+        .action_name(&ShowAddFeedDialog::action_name())
+        .build()
+}
+
 #[allow(clippy::missing_docs_in_private_items)]
 #[relm4_macros::widget(pub)]
 impl relm4::Widgets<Model, super::Model> for Widgets {
@@ -190,9 +217,16 @@ impl relm4::Widgets<Model, super::Model> for Widgets {
                 pack_start = &gtk::Button {
                     set_visible: watch!(model.back_button_visible),
                     set_icon_name: "go-previous-symbolic",
+                    set_tooltip_text: Some("Go Back"),
                     connect_clicked(sender) => move |_| {
                         sender.send(Msg::Back).ok();
                     },
+                },
+                // Add Button
+                pack_start = &split_button() -> adw::SplitButton {
+                    set_icon_name: "plus-large-symbolic",
+                    set_tooltip_text: Some("Add New Feed"),
+                    set_menu_model: Some(&add_menu),
                 },
                 // Menu Button
                 pack_end = &gtk::MenuButton {
@@ -218,8 +252,12 @@ impl relm4::Widgets<Model, super::Model> for Widgets {
     }
     menu! {
         main_menu: {
-            "Keyboard Shortcuts" => OpenHelpOverlay,
-            "About Tidings" => OpenAboutDialog,
+            "Keyboard Shortcuts" => ShowHelpOverlay,
+            "About Tidings" => ShowAboutDialog,
+        },
+        add_menu: {
+            "Feed" => ShowAddFeedDialog,
+            "Directory" => ShowAddDirectoryDialog,
         }
     }
 }

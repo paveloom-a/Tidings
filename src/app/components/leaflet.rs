@@ -1,7 +1,7 @@
 //! Leaflet
 
-mod feeds;
-mod tidings;
+pub mod feeds;
+pub mod tidings;
 
 use relm4::{ComponentUpdate, RelmComponent, Sender};
 
@@ -11,7 +11,10 @@ use super::{AppModel, AppMsg};
 pub struct Model;
 
 /// Messages
-pub enum Msg {}
+pub enum Msg {
+    /// Transfer a message to the Feeds component
+    TransferToFeeds(feeds::Msg),
+}
 
 /// Components
 #[derive(relm4_macros::Components)]
@@ -34,11 +37,16 @@ impl ComponentUpdate<AppModel> for Model {
     }
     fn update(
         &mut self,
-        _msg: Msg,
-        _components: &Components,
+        msg: Msg,
+        components: &Components,
         _sender: Sender<Msg>,
         _parent_sender: Sender<AppMsg>,
     ) {
+        match msg {
+            Msg::TransferToFeeds(message) => {
+                components.feeds.send(message).ok();
+            }
+        }
     }
 }
 

@@ -1,5 +1,14 @@
 subdir('icons')
-subdir('resources')
+
+# Compile the resource bundle
+resources = gnome.compile_resources(
+  'resources',
+  'resources.gresource.xml',
+  gresource_bundle: true,
+  source_dir: meson.current_build_dir(),
+  install: true,
+  install_dir: pkgdatadir,
+)
 
 # Get the path to the directory with translations
 po_dir = meson.project_source_root() / 'po'

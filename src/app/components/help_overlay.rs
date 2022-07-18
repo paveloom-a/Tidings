@@ -7,16 +7,16 @@ use super::{AppModel, AppMsg};
 
 /// Model
 pub struct Model {
-    /// Is the overlay visible?
+    /// Is the window visible?
     visible: bool,
 }
 
 /// Messages
 pub enum Msg {
-    /// Open the window
-    Open,
-    /// Close the window
-    Close,
+    /// Show the window
+    Show,
+    /// Hide the window
+    Hide,
 }
 
 impl relm4::Model for Model {
@@ -37,8 +37,8 @@ impl ComponentUpdate<AppModel> for Model {
         _parent_sender: Sender<AppMsg>,
     ) {
         match msg {
-            Msg::Open => self.visible = true,
-            Msg::Close => self.visible = false,
+            Msg::Show => self.visible = true,
+            Msg::Hide => self.visible = false,
         }
     }
 }
@@ -59,7 +59,7 @@ impl relm4::Widgets<Model, AppModel> for Widgets {
             set_transient_for: parent!(Some(&parent_widgets.app_window)),
             set_visible: watch!(model.visible),
             connect_close_request(sender) => move |_| {
-                sender.send(Msg::Close).ok();
+                sender.send(Msg::Hide).ok();
                 gtk::Inhibit(false)
             }
         }

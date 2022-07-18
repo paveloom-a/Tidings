@@ -15,10 +15,10 @@ pub struct Model {
 
 /// Messages
 pub enum Msg {
-    /// Open the window
-    Open,
-    /// Close the window
-    Close,
+    /// Show the window
+    Show,
+    /// Hide the window
+    Hide,
 }
 
 impl relm4::Model for Model {
@@ -39,8 +39,8 @@ impl ComponentUpdate<AppModel> for Model {
         _parent_sender: Sender<AppMsg>,
     ) {
         match msg {
-            Msg::Open => self.visible = true,
-            Msg::Close => self.visible = false,
+            Msg::Show => self.visible = true,
+            Msg::Hide => self.visible = false,
         }
     }
 }
@@ -61,7 +61,7 @@ impl relm4::Widgets<Model, AppModel> for Widgets {
             set_visible: watch!(model.visible),
             set_website: Some("https://github.com/paveloom-a/Tidings"),
             connect_close_request(sender) => move |_| {
-                sender.send(Msg::Close).ok();
+                sender.send(Msg::Hide).ok();
                 gtk::Inhibit(false)
             },
         }

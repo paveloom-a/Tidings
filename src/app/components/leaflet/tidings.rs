@@ -5,7 +5,7 @@ mod list;
 use gtk::prelude::{BoxExt, Cast, ListModelExt, ObjectExt, OrientableExt, StaticType, WidgetExt};
 use relm4::{ComponentUpdate, Sender};
 
-use crate::app::{OpenAboutDialog, OpenHelpOverlay};
+use crate::app::actions::{ShowAboutDialog, ShowHelpOverlay};
 use list::{Item, List};
 
 /// Model
@@ -30,14 +30,8 @@ impl ComponentUpdate<super::Model> for Model {
         // Add fake tidings with numbers as labels
         for number in 0_usize..=10_usize {
             let label = &number.to_string();
-            match Item::new(label) {
-                Ok(t) => {
-                    list.append(&t);
-                }
-                Err(e) => {
-                    log::error!("Couldn't create a tiding from the label {label}");
-                    log::debug!("{e}");
-                }
+            if let Some(item) = Item::new(label) {
+                list.append(&item);
             }
         }
         Self { list }
@@ -81,11 +75,9 @@ fn list_view(model: &Model) -> gtk::ListView {
         if let Some(item) = obj.downcast_ref::<Item>() {
             // Get the label
             let _label: String = item.property("label");
-            true
-        } else {
-            log::error!("Couldn't unwrap the object in the filter");
-            false
+            return true;
         }
+        false
     });
     // Create a filter model
     let filter_model = gtk::FilterListModel::new(Some(&model.list), Some(&filter));
@@ -98,15 +90,11 @@ fn list_view(model: &Model) -> gtk::ListView {
                 let label_1: String = item_1.property("label");
                 let label_2: String = item_2.property("label");
                 // Reverse the sorting order (large strings come first)
-                label_2.cmp(&label_1).into()
-            } else {
-                log::error!("Couldn't unwrap the second object in the sorter");
-                gtk::Ordering::Larger
+                return label_2.cmp(&label_1).into();
             }
-        } else {
-            log::error!("Couldn't unwrap the first object in the sorter");
-            gtk::Ordering::Larger
         }
+        // Default to
+        gtk::Ordering::Larger
     });
     // Create a sorter model
     let sort_model = gtk::SortListModel::new(Some(&filter_model), Some(&sorter));
@@ -126,14 +114,8 @@ fn list_view_connect_activate(_sender: &Sender<Msg>, list_view: &gtk::ListView, 
             if let Ok(item) = item.downcast::<Item>() {
                 // Update the label
                 item.update_string();
-            } else {
-                log::error!("Couldn't downcast the object");
             }
-        } else {
-            log::error!("Couldn't get the item at the position {position}");
         }
-    } else {
-        log::error!("Couldn't unwrap the model");
     }
 }
 
@@ -174,8 +156,8 @@ impl relm4::Widgets<Model, super::Model> for Widgets {
     }
     menu! {
         main_menu: {
-            "Keyboard Shortcuts" => OpenHelpOverlay,
-            "About Tidings" => OpenAboutDialog,
+            "Keyboard Shortcuts" => ShowHelpOverlay,
+            "About Tidings" => ShowAboutDialog,
         }
     }
 }

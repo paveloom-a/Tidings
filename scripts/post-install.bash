@@ -2,6 +2,9 @@
 
 # This script updates resources caches after installing
 
+# Exit when any command fails
+set -e
+
 # Define the path to the data
 DATA="${MESON_INSTALL_PREFIX}"/share
 

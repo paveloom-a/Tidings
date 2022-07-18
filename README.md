@@ -29,5 +29,3 @@ Additionally, these commands will install the application in your system, so you
 To iterate on the application, run the [`run.bash`](./run.bash) script. It replicates a part of the `flatpak-builder`'s build process with standard `flatpak` commands, allowing you to preserve the Cargo cache between builds.
 
 > ***Note***: Make sure you have [`yq`](https://github.com/mikefarah/yq) installed.
-
-To lint the program, run `cargo lint`.
