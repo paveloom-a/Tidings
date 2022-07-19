@@ -3,17 +3,17 @@
   <schema path="/paveloom/apps/tidings/" id="@app-id@" gettext-domain="@domainname@">
     <key name="window-width" type="i">
       <default>600</default>
-      <summary>Default window width</summary>
-      <description>Default window width</description>
+      <summary>Window width</summary>
+      <description></description>
     </key>
     <key name="window-height" type="i">
       <default>400</default>
-      <summary>Default window height</summary>
-      <description>Default window height</description>
+      <summary>Window height</summary>
+      <description></description>
     </key>
     <key name="is-maximized" type="b">
       <default>false</default>
-      <summary>Default window maximized behaviour</summary>
+      <summary>Is the application window maximized?</summary>
       <description></description>
     </key>
   </schema>

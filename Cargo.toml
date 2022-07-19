@@ -3,7 +3,7 @@ name = "tidings"
 version = "0.1.0"
 authors = ["Pavel Sobolev <paveloom@riseup.net>"]
 edition = "2021"
-rust-version = "1.57"
+rust-version = "1.62.1"
 description = "Finally, an RSS reader without a built-in browser"
 documentation = "https://github.com/paveloom-a/Tidings"
 readme = "README.md"
@@ -14,9 +14,10 @@ keywords = ["rss", "news", "feed", "aggregator", "gtk4"]
 categories = ["graphics"]
 
 [profile.release]
-lto = true
 codegen-units = 1
+lto = true
 panic = 'abort'
+strip = true
 
 [dependencies]
 adw = { version = "=0.1.1", package = "libadwaita" }

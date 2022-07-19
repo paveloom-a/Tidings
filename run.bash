@@ -23,7 +23,7 @@ else
 fi
 
 # Define the ID of the app
-if [ "${PROFILE}" != "release" ]; then
+if [ "${PROFILE}" = "release" ]; then
     ID=paveloom.apps."${NAME}"
 else
     ID=paveloom.apps."${NAME}".dev
@@ -117,7 +117,6 @@ flatpak-build meson install --quiet -C "${TARGET}"
 # Run the application
 flatpak build \
     --with-appdir \
-    --allow=devel \
     "${FINISH_ARGS[@]}" \
     "${TARGET}" \
     "${NAME}"

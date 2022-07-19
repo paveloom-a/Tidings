@@ -27,3 +27,5 @@ cargo_sources = files(
   meson.project_source_root() / 'Cargo.toml',
   meson.project_source_root() / 'Cargo.lock',
 )
+
+rustup_sources = files(meson.project_source_root() / 'rust-toolchain.toml')

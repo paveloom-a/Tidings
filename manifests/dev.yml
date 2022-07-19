@@ -3,10 +3,9 @@ runtime: org.gnome.Platform
 runtime-version: "42"
 sdk: org.gnome.Sdk
 sdk-extensions:
-  - org.freedesktop.Sdk.Extension.rust-stable
   - org.freedesktop.Sdk.Extension.llvm14
 build-options:
-  append-path: /usr/lib/sdk/rust-stable/bin:/usr/lib/sdk/llvm14/bin
+  append-path: /usr/lib/sdk/llvm14/bin
   build-args:
     - --share=network
   test-args:
@@ -19,7 +18,6 @@ finish-args:
   - --device=dri
   - --talk-name=org.a11y.Bus
   - --env=RUST_BACKTRACE=full
-  - --env=RUST_LOG=tidings=debug
   - --env=G_MESSAGES_DEBUG=all
 modules:
   - name: tidings

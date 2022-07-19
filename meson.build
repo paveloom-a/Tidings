@@ -1,8 +1,7 @@
 project(
   'tidings',
-  'rust',
   license: 'GPL-3.0-only',
-  meson_version: '>= 0.59.4',
+  meson_version: '= 0.59.4',
   version: run_command(
     'grep',
     '-oPm',
@@ -14,7 +13,7 @@ project(
 )
 
 year = '2022'
-date = '2022-06-25'
+date = '2022-07-19'
 
 i18n = import('i18n')
 gnome = import('gnome')
@@ -28,8 +27,7 @@ dependency('gio-2.0', version: '= 2.72.3')
 dependency('gtk4', version: '= 4.6.6')
 dependency('libadwaita-1', version: '= 1.1.3')
 
-cargo = find_program('cargo', required: true)
-cargo_script = find_program(meson.project_source_root() / 'scripts' / 'build.bash')
+build_script = find_program(meson.project_source_root() / 'scripts' / 'build.bash')
 sources_script =find_program(meson.project_source_root() / 'scripts' / 'sources.bash')
 glib_compile_resources = find_program('glib-compile-resources', required: true)
 glib_compile_schemas = find_program('glib-compile-schemas', required: true)
@@ -78,14 +76,14 @@ subdir('src')
 custom_target(
   'cargo-build',
   build_by_default: true,
-  input: [rust_sources, cargo_sources],
+  input: [rust_sources, cargo_sources, rustup_sources],
   output: meson.project_name(),
   console: true,
   install: true,
   install_dir: bindir,
   depends: resources,
   command: [
-    cargo_script,
+    build_script,
     meson.project_build_root(),
     meson.project_source_root(),
     '@OUTPUT@',
