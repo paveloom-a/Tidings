@@ -4,7 +4,9 @@ pub(super) mod dictionary;
 mod list;
 
 use generational_arena::Index;
-use gtk::prelude::{BoxExt, Cast, ListModelExt, ObjectExt, OrientableExt, StaticType, WidgetExt};
+use gtk::prelude::{
+    BoxExt, ButtonExt, Cast, ListModelExt, ObjectExt, OrientableExt, StaticType, WidgetExt,
+};
 use relm4::{ComponentUpdate, Sender};
 
 use crate::app::actions::{ShowAboutDialog, ShowHelpOverlay};
@@ -19,6 +21,10 @@ pub struct Model {
     list: List,
     /// Current index displayed
     current: Option<Index>,
+    /// Is the back button visible?
+    back_button_visible: bool,
+    /// Are the end buttons visible in the header bar?
+    end_buttons_visible: bool,
 }
 
 /// Messages
@@ -27,6 +33,16 @@ pub enum Msg {
     UpdateFinished(Index, Tidings),
     /// Show the tidings of the particular feed
     Show(Index),
+    /// Show the back button
+    ShowBackButton,
+    /// Hide the back button
+    HideBackButton,
+    /// Show end buttons in the header bar
+    ShowEndButtons,
+    /// Hide end buttons in the header bar
+    HideEndButtons,
+    /// Navigate back in the leaflet
+    Back,
 }
 
 impl relm4::Model for Model {
@@ -45,6 +61,8 @@ impl ComponentUpdate<super::Model> for Model {
             dictionary,
             list,
             current: None,
+            back_button_visible: false,
+            end_buttons_visible: true,
         }
     }
     fn update(
@@ -52,7 +70,7 @@ impl ComponentUpdate<super::Model> for Model {
         msg: Msg,
         _components: &(),
         sender: Sender<Msg>,
-        _parent_sender: Sender<super::Msg>,
+        parent_sender: Sender<super::Msg>,
     ) {
         match msg {
             Msg::UpdateFinished(index, tidings) => {
@@ -80,6 +98,25 @@ impl ComponentUpdate<super::Model> for Model {
                     // Render the list as empty
                     self.list.update(&[]);
                 }
+                // Inform the leaflet that the Tidings page is ready to be shown
+                // (this only matters if the leaflet is folded)
+                parent_sender.send(super::Msg::ShowTidingsPage).ok();
+            }
+            Msg::ShowBackButton => {
+                self.back_button_visible = true;
+            }
+            Msg::HideBackButton => {
+                self.back_button_visible = false;
+            }
+            Msg::ShowEndButtons => {
+                self.end_buttons_visible = true;
+            }
+            Msg::HideEndButtons => {
+                self.end_buttons_visible = false;
+            }
+            Msg::Back => {
+                // Inform the leaflet that the Tidings page should be hidden
+                parent_sender.send(super::Msg::HideTidingsPage).ok();
             }
         }
     }
@@ -168,12 +205,28 @@ impl relm4::Widgets<Model, super::Model> for Widgets {
             set_orientation: gtk::Orientation::Vertical,
             // Header Bar
             append: header_bar = &adw::HeaderBar {
+                set_show_start_title_buttons: watch!(
+                    model.end_buttons_visible
+                ),
+                set_show_end_title_buttons: watch!(
+                    model.end_buttons_visible
+                ),
                 // Title
                 set_title_widget = Some(&adw::WindowTitle) {
                     set_title: "Tidings"
                 },
+                // Go Back Button
+                pack_start = &gtk::Button {
+                    set_visible: watch!(model.back_button_visible),
+                    set_icon_name: "go-previous-symbolic",
+                    set_tooltip_text: Some("Go Back"),
+                    connect_clicked(sender) => move |_| {
+                        sender.send(Msg::Back).ok();
+                    },
+                },
                 // Menu Button
                 pack_end = &gtk::MenuButton {
+                    set_visible: watch!(model.end_buttons_visible),
                     set_icon_name: "open-menu-symbolic",
                     set_menu_model: Some(&main_menu),
                 },

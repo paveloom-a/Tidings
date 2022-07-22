@@ -37,7 +37,7 @@ impl ObjectImpl for GItem {
                     // Short description
                     "label",
                     // Default value
-                    Some(""),
+                    None,
                     // Flags
                     ParamFlags::READWRITE,
                 ),

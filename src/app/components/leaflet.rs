@@ -12,10 +12,17 @@ use crate::app::leaflet::tidings::dictionary::Tidings;
 use feeds::tree::IndicesUrls;
 
 /// Model
-pub struct Model;
+pub struct Model {
+    /// Is the leaflet folded?
+    folded: bool,
+    /// Show tidings in the folded state?
+    show_tidings: bool,
+}
 
 /// Messages
 pub enum Msg {
+    /// Set the folding state
+    SetFolded(bool),
     /// Transfer a message to the Feeds component
     TransferToFeeds(feeds::Msg),
     /// Start update of all feeds
@@ -24,6 +31,12 @@ pub enum Msg {
     UpdateFinished(Index, Tidings),
     /// Show the tidings of the particular feed
     ShowTidings(Index),
+    /// Show the Tidings page
+    ShowTidingsPage,
+    /// Hide the Tidings page
+    HideTidingsPage,
+    /// Inform Tidings to show the Back button
+    ShowBackButton,
 }
 
 /// Components
@@ -45,7 +58,12 @@ impl relm4::Model for Model {
 
 impl ComponentUpdate<AppModel> for Model {
     fn init_model(_parent_model: &AppModel) -> Self {
-        Self
+        Self {
+            // Whether it's folded is restored on restart
+            // by the `connect_folded_notify` function
+            folded: false,
+            show_tidings: false,
+        }
     }
     fn update(
         &mut self,
@@ -55,6 +73,9 @@ impl ComponentUpdate<AppModel> for Model {
         _parent_sender: Sender<AppMsg>,
     ) {
         match msg {
+            Msg::SetFolded(folded) => {
+                self.folded = folded;
+            }
             Msg::TransferToFeeds(message) => {
                 // Transfer the message to the feeds
                 components.feeds.send(message).ok();
@@ -82,6 +103,25 @@ impl ComponentUpdate<AppModel> for Model {
                 // Inform Tidings to show the tidings of the specified feed
                 components.tidings.send(tidings::Msg::Show(index)).ok();
             }
+            Msg::ShowTidingsPage => {
+                // This is done here and not in the message above
+                // just to make sure that the tidings are ready
+                if self.folded {
+                    // Show the Tidings page
+                    self.show_tidings = true;
+                    // Hide the buttons in the end of the Tidings' Header Bar
+                    components.tidings.send(tidings::Msg::HideEndButtons).ok();
+                }
+            }
+            Msg::HideTidingsPage => {
+                // Hide the Tidings page
+                self.show_tidings = false;
+                // Show the buttons in the end of the Tidings' Header Bar
+                components.tidings.send(tidings::Msg::ShowEndButtons).ok();
+            }
+            Msg::ShowBackButton => {
+                components.tidings.send(tidings::Msg::ShowBackButton).ok();
+            }
         }
     }
 }
@@ -91,25 +131,49 @@ impl ComponentUpdate<AppModel> for Model {
 impl relm4::Widgets<Model, AppModel> for Widgets {
     view! {
         leaflet = Some(&adw::Leaflet) {
-            // Feeds
-            prepend: components.feeds.root_widget(),
-            // Separator
-            append: &gtk::Separator::new(gtk::Orientation::Horizontal),
-            // Tidings
-            append: components.tidings.root_widget(),
+            connect_folded_notify[
+                feeds_sender = components.feeds.sender(),
+                tidings_sender = components.tidings.sender(),
+            ] => move |leaflet| {
+                if leaflet.is_folded() {
+                    // Update the folding state
+                    sender.send(Msg::SetFolded(true)).ok();
+                    // Inform Tidings to show the back button
+                    sender.send(Msg::ShowBackButton).ok();
+                    // Show the buttons in the end of the Tidings' Header Bar
+                    feeds_sender.send(feeds::Msg::ShowEndButtons).ok();
+                } else {
+                    // Update the folding state
+                    sender.send(Msg::SetFolded(false)).ok();
+                    // Hide the buttons in the end of the Feeds' Header Bar
+                    feeds_sender.send(feeds::Msg::HideEndButtons).ok();
+                    // Inform Tidings to hide the back button
+                    tidings_sender.send(tidings::Msg::HideBackButton).ok();
+                    // Hide the Tidings page (won't be shown if folded right after)
+                    sender.send(Msg::HideTidingsPage).ok();
+                }
+            },
         }
     }
     fn post_init() {
-        // Notify the components on the folding state
-        {
-            let sender = components.feeds.sender();
-            leaflet.connect_folded_notify(move |leaflet| {
-                if leaflet.is_folded() {
-                    sender.send(feeds::Msg::ShowEndButtons).ok();
-                } else {
-                    sender.send(feeds::Msg::HideEndButtons).ok();
-                }
-            });
+        // Doing this manually just to make
+        // sure the separator isn't navigatable
+
+        // Feeds
+        leaflet.prepend(components.feeds.root_widget());
+        // Separator
+        let separator_page = leaflet.append(&gtk::Separator::new(gtk::Orientation::Horizontal));
+        separator_page.set_navigatable(false);
+        // Tidings
+        leaflet.append(components.tidings.root_widget());
+    }
+    fn pre_view() {
+        if model.folded && model.show_tidings {
+            // Navigate forward to Tidings
+            leaflet.navigate(adw::NavigationDirection::Forward);
+        } else {
+            // Navigate back to Feeds
+            leaflet.navigate(adw::NavigationDirection::Back);
         }
     }
 }

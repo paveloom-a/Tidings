@@ -5,7 +5,6 @@ pub mod tree;
 
 use generational_arena::Index;
 use gtk::prelude::{BoxExt, ButtonExt, Cast, ListModelExt, OrientableExt, StaticType, WidgetExt};
-use relm4::actions::ActionName;
 use relm4::{ComponentUpdate, Sender};
 
 use crate::app::actions::{
@@ -20,8 +19,8 @@ pub struct Model {
     tree: Tree,
     /// List of items in the current directory
     list: List,
-    /// Is the back button visible?
-    back_button_visible: bool,
+    /// Is the back button sensitive?
+    back_button_sensitive: bool,
     /// Are the end buttons visible in the header bar?
     end_buttons_visible: bool,
 }
@@ -93,7 +92,7 @@ impl ComponentUpdate<super::Model> for Model {
         Self {
             tree,
             list,
-            back_button_visible: false,
+            back_button_sensitive: false,
             end_buttons_visible: false,
         }
     }
@@ -112,8 +111,8 @@ impl ComponentUpdate<super::Model> for Model {
                 self.list.update(&self.tree);
                 // If on the top level
                 if self.tree.is_root() {
-                    // Hide the back button
-                    self.back_button_visible = false;
+                    // Make the back button insensitive
+                    self.back_button_sensitive = false;
                 }
             }
             Msg::EnterDirectory(position) => {
@@ -121,8 +120,8 @@ impl ComponentUpdate<super::Model> for Model {
                 self.tree.enter_dir(position);
                 // Update the list
                 self.list.update(&self.tree);
-                // Show the back button
-                self.back_button_visible = true;
+                // Make the back button sensitive
+                self.back_button_sensitive = true;
             }
             Msg::ShowEndButtons => {
                 self.end_buttons_visible = true;
@@ -234,13 +233,6 @@ fn list_view_connect_activate(sender: &Sender<Msg>, list_view: &gtk::ListView, p
     }
 }
 
-/// Create a Split Button with an action on an activate event
-fn split_button() -> adw::SplitButton {
-    adw::SplitButton::builder()
-        .action_name(&ShowAddFeedDialog::action_name())
-        .build()
-}
-
 #[allow(clippy::missing_docs_in_private_items)]
 #[relm4_macros::widget(pub)]
 impl relm4::Widgets<Model, super::Model> for Widgets {
@@ -264,7 +256,7 @@ impl relm4::Widgets<Model, super::Model> for Widgets {
                 },
                 // Go Back Button
                 pack_start = &gtk::Button {
-                    set_visible: watch!(model.back_button_visible),
+                    set_sensitive: watch!(model.back_button_sensitive),
                     set_icon_name: "go-previous-symbolic",
                     set_tooltip_text: Some("Go Back"),
                     connect_clicked(sender) => move |_| {
@@ -272,9 +264,9 @@ impl relm4::Widgets<Model, super::Model> for Widgets {
                     },
                 },
                 // Add Split Button
-                pack_start = &split_button() -> adw::SplitButton {
+                pack_start = &gtk::MenuButton {
                     set_icon_name: "plus-large-symbolic",
-                    set_tooltip_text: Some("Add New Feed"),
+                    set_tooltip_text: Some("Add"),
                     set_menu_model: Some(&add_menu),
                 },
                 pack_start = &gtk::Button {
