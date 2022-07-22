@@ -4,6 +4,9 @@ use generational_arena::{Arena, Index};
 
 use super::Item;
 
+/// An alias type for a vector of (index, URL) pairs of the feeds
+pub(in crate::app::components::leaflet) type IndicesUrls = Vec<(Index, Box<str>)>;
+
 /// Node in the tree of feeds
 pub(super) enum Node {
     /// Directory
@@ -19,6 +22,10 @@ pub(super) enum Node {
     Feed {
         /// Label
         label: String,
+        /// URL
+        url: String,
+        /// Is the feed in the process of being updated?
+        updating: bool,
     },
 }
 
@@ -115,21 +122,48 @@ impl Tree {
     pub(super) fn items(&self) -> Option<Vec<Item>> {
         // Get the indices of the children
         if let Some(children_indices) = self.current_children_indices() {
-            // Prepare a vector for the store items
-            let mut vec = vec![];
             // For each index of a child
-            for &index in children_indices {
-                // Get the node
-                if let Some(node) = self.arena.get(index) {
-                    // Cast the node to the object
-                    if let Some(item) = Option::<Item>::from(node) {
-                        // If that's successful, push
-                        vec.push(item);
+            children_indices
+                .iter()
+                .map(|&index| {
+                    // Get the node
+                    if let Some(node) = self.arena.get(index) {
+                        // Cast the node to the object
+                        if let Some(mut item) = Option::<Item>::from(node) {
+                            // If that's successful, set the index of the item
+                            item.set_index(index);
+                            // Return the result
+                            Some(item)
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
                     }
-                }
-            }
-            return Some(vec);
+                })
+                .collect()
+        } else {
+            None
         }
-        None
+    }
+    /// Return a list of (index, URL) pairs of the feeds
+    pub(super) fn indices_urls(&self) -> IndicesUrls {
+        self.arena
+            .iter()
+            .filter_map(|(index, node)| match *node {
+                Node::Directory { .. } => None,
+                Node::Feed { ref url, .. } => Some((index, url.clone().into_boxed_str())),
+            })
+            .collect()
+    }
+    /// Set the updating status of one of the items in the tree,
+    pub(super) fn set_updating(&mut self, index: Index, updating: bool) {
+        if let Some(&mut Node::Feed {
+            updating: ref mut inner_updating,
+            ..
+        }) = self.arena.get_mut(index)
+        {
+            *inner_updating = updating;
+        }
     }
 }

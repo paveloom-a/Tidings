@@ -1,11 +1,15 @@
 //! Leaflet
 
 pub mod feeds;
+mod handlers;
 pub mod tidings;
 
-use relm4::{ComponentUpdate, RelmComponent, Sender};
+use generational_arena::Index;
+use relm4::{ComponentUpdate, RelmComponent, RelmMsgHandler, Sender};
 
 use super::{AppModel, AppMsg};
+use crate::app::leaflet::tidings::dictionary::Tidings;
+use feeds::tree::IndicesUrls;
 
 /// Model
 pub struct Model;
@@ -14,6 +18,12 @@ pub struct Model;
 pub enum Msg {
     /// Transfer a message to the Feeds component
     TransferToFeeds(feeds::Msg),
+    /// Start update of all feeds
+    UpdateAll(IndicesUrls),
+    /// Update of the particular feed finished
+    UpdateFinished(Index, Tidings),
+    /// Show the tidings of the particular feed
+    ShowTidings(Index),
 }
 
 /// Components
@@ -23,6 +33,8 @@ pub struct Components {
     feeds: RelmComponent<feeds::Model, Model>,
     /// Tidings
     tidings: RelmComponent<tidings::Model, Model>,
+    /// Update message handler
+    update: RelmMsgHandler<handlers::update::AsyncHandler, Model>,
 }
 
 impl relm4::Model for Model {
@@ -44,7 +56,31 @@ impl ComponentUpdate<AppModel> for Model {
     ) {
         match msg {
             Msg::TransferToFeeds(message) => {
+                // Transfer the message to the feeds
                 components.feeds.send(message).ok();
+            }
+            Msg::UpdateAll(indices_urls) => {
+                // Transfer these to the update message handler
+                components
+                    .update
+                    .send(handlers::update::Msg::UpdateAll(indices_urls));
+            }
+            Msg::UpdateFinished(index, tidings) => {
+                // Remove the updating status of the feed
+                components
+                    .feeds
+                    .send(feeds::Msg::UpdateFinished(index))
+                    .ok();
+                // Send the tidings to the Tidings component,
+                // so they're stored in the dictionary
+                components
+                    .tidings
+                    .send(tidings::Msg::UpdateFinished(index, tidings))
+                    .ok();
+            }
+            Msg::ShowTidings(index) => {
+                // Inform Tidings to show the tidings of the specified feed
+                components.tidings.send(tidings::Msg::Show(index)).ok();
             }
         }
     }

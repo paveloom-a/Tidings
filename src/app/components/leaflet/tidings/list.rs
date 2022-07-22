@@ -1,14 +1,13 @@
 //! List of items
 
 use gtk::glib::{ParamFlags, ParamSpec, ParamSpecString, Value};
-use gtk::prelude::{ObjectExt, ToValue};
+use gtk::prelude::{ListModelExt, ObjectExt, StaticType, ToValue};
 use gtk::subclass::prelude::{ObjectImpl, ObjectSubclass};
 use gtk::{gio, glib};
 use once_cell::sync::Lazy;
 use std::cell::RefCell;
 
-/// List of items
-pub(super) type List = gio::ListStore;
+use super::dictionary::Tiding;
 
 /// Object holding the state
 #[derive(Default)]
@@ -74,5 +73,37 @@ impl Item {
     pub fn update_string(self) {
         let label: String = self.property("label");
         self.set_property("label", format!("{}!", label));
+    }
+}
+
+impl From<&Tiding> for Option<Item> {
+    fn from(tiding: &Tiding) -> Self {
+        Item::new(&tiding.label)
+    }
+}
+
+/// List of items
+pub(super) struct List {
+    /// List Store
+    pub(super) store: gio::ListStore,
+}
+
+impl List {
+    /// Initialize a list
+    pub(super) fn new() -> Self {
+        Self {
+            store: gio::ListStore::new(Item::static_type()),
+        }
+    }
+    /// Update the list with the provided tidings
+    pub(super) fn update(&mut self, tidings: &[Tiding]) {
+        // Collect a vector of items
+        if let Some(items) = tidings
+            .iter()
+            .map(Option::<Item>::from)
+            .collect::<Option<Vec<Item>>>()
+        {
+            self.store.splice(0, self.store.n_items(), &items);
+        }
     }
 }

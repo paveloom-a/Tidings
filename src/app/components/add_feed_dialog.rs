@@ -107,7 +107,7 @@ impl relm4::Widgets<Model, AppModel> for Widgets {
                     append = &gtk::ListBox {
                         set_selection_mode: gtk::SelectionMode::None,
                         add_css_class: "boxed-list",
-                        // Action Row
+                        // Label Action Row
                         append = &adw::ActionRow {
                             set_title: "Label",
                             // Feed Label
@@ -115,7 +115,7 @@ impl relm4::Widgets<Model, AppModel> for Widgets {
                                 set_margin_top: 7,
                                 set_margin_bottom: 7,
                                 set_buffer: &model.label,
-                                set_input_purpose: gtk::InputPurpose::Url,
+                                set_input_purpose: gtk::InputPurpose::Name,
                                 set_activates_default: true,
                             },
                             // Add Button

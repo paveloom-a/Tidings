@@ -1,21 +1,33 @@
 //! Tidings
 
+pub(super) mod dictionary;
 mod list;
 
+use generational_arena::Index;
 use gtk::prelude::{BoxExt, Cast, ListModelExt, ObjectExt, OrientableExt, StaticType, WidgetExt};
 use relm4::{ComponentUpdate, Sender};
 
 use crate::app::actions::{ShowAboutDialog, ShowHelpOverlay};
+use dictionary::{Dictionary, Tidings};
 use list::{Item, List};
 
 /// Model
 pub struct Model {
+    /// Dictionary of (index, tidings) key-value pairs
+    dictionary: Dictionary,
     /// List of items
     list: List,
+    /// Current index displayed
+    current: Option<Index>,
 }
 
 /// Messages
-pub enum Msg {}
+pub enum Msg {
+    /// Update of the particular feed finished
+    UpdateFinished(Index, Tidings),
+    /// Show the tidings of the particular feed
+    Show(Index),
+}
 
 impl relm4::Model for Model {
     type Msg = Msg;
@@ -25,24 +37,51 @@ impl relm4::Model for Model {
 
 impl ComponentUpdate<super::Model> for Model {
     fn init_model(_parent_model: &super::Model) -> Self {
+        // Initialize a dictionary
+        let dictionary = Dictionary::new();
         // Initialize a list
-        let list = List::new(Item::static_type());
-        // Add fake tidings with numbers as labels
-        for number in 0_usize..=10_usize {
-            let label = &number.to_string();
-            if let Some(item) = Item::new(label) {
-                list.append(&item);
-            }
+        let list = List::new();
+        Self {
+            dictionary,
+            list,
+            current: None,
         }
-        Self { list }
     }
     fn update(
         &mut self,
-        _msg: Msg,
+        msg: Msg,
         _components: &(),
-        _sender: Sender<Msg>,
+        sender: Sender<Msg>,
         _parent_sender: Sender<super::Msg>,
     ) {
+        match msg {
+            Msg::UpdateFinished(index, tidings) => {
+                // Insert the tidings into the dictionary
+                // using the index as a key
+                self.dictionary.insert(index, tidings);
+                // If there is a currently selected feed
+                if let Some(ref mut current) = self.current {
+                    // And its index is the same as this one
+                    if index == *current {
+                        // Update the list
+                        sender.send(Msg::Show(index)).ok();
+                    }
+                }
+            }
+            Msg::Show(index) => {
+                // Update the current index
+                self.current = Some(index);
+                // If there are tidings for this index
+                if let Some(tidings) = self.dictionary.get(index) {
+                    // Update the list with them
+                    self.list.update(tidings);
+                // Otherwise,
+                } else {
+                    // Render the list as empty
+                    self.list.update(&[]);
+                }
+            }
+        }
     }
 }
 
@@ -80,7 +119,7 @@ fn list_view(model: &Model) -> gtk::ListView {
         false
     });
     // Create a filter model
-    let filter_model = gtk::FilterListModel::new(Some(&model.list), Some(&filter));
+    let filter_model = gtk::FilterListModel::new(Some(&model.list.store), Some(&filter));
     // Prepare a sorter
     let sorter = gtk::CustomSorter::new(move |obj_1, obj_2| {
         // Downcast the objects
