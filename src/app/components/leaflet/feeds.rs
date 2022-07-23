@@ -7,6 +7,7 @@ use generational_arena::Index;
 use gtk::prelude::{BoxExt, ButtonExt, Cast, ListModelExt, OrientableExt, StaticType, WidgetExt};
 use relm4::{ComponentUpdate, Sender};
 
+use super::tidings;
 use crate::app::actions::{
     ShowAboutDialog, ShowAddDirectoryDialog, ShowAddFeedDialog, ShowHelpOverlay,
 };
@@ -52,17 +53,8 @@ pub enum Msg {
     ShowEndButtons,
     /// Hide end buttons in the header bar
     HideEndButtons,
-    /// Add a feed
-    /// TODO: unify these
-    AddFeed {
-        /// Label
-        label: String,
-    },
-    /// Add a directory
-    AddDirectory {
-        /// Label
-        label: String,
-    },
+    /// Add a node
+    Add(Node),
     /// Update all feeds
     UpdateAll,
     /// Update of the particular feed has started
@@ -129,24 +121,8 @@ impl ComponentUpdate<super::Model> for Model {
             Msg::HideEndButtons => {
                 self.end_buttons_visible = false;
             }
-            Msg::AddFeed { label } => {
-                // Create a new node
-                let node = Node::Feed {
-                    label,
-                    url: "".to_owned(),
-                    updating: false,
-                };
-                // Insert new item into the model
-                self.insert(node);
-            }
-            Msg::AddDirectory { label } => {
-                // Create a new node
-                let node = Node::Directory {
-                    label,
-                    children: vec![],
-                    parent: Some(self.tree.current),
-                };
-                // Insert new item into the model
+            Msg::Add(node) => {
+                // Insert the node into the model
                 self.insert(node);
             }
             Msg::UpdateAll => {
@@ -165,7 +141,9 @@ impl ComponentUpdate<super::Model> for Model {
             }
             Msg::ShowTidings(index) => {
                 // Inform Tidings about which index to show
-                parent_sender.send(super::Msg::ShowTidings(index)).ok();
+                parent_sender
+                    .send(super::Msg::TransferToTidings(tidings::Msg::Show(index)))
+                    .ok();
             }
         }
     }

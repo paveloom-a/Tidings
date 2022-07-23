@@ -65,8 +65,10 @@ impl ComponentUpdate<AppModel> for Model {
             Msg::Add => {
                 // Get the label
                 let label = self.label.text();
+                // Prepare a node
+                let node = feeds::tree::Node::new_directory(label);
                 // Prepare a message for the Feeds component
-                let msg = feeds::Msg::AddDirectory { label };
+                let msg = feeds::Msg::Add(node);
                 // Send the message
                 parent_sender.send(AppMsg::TransferToFeeds(msg)).ok();
                 // Hide the dialog

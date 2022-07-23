@@ -25,18 +25,16 @@ pub enum Msg {
     SetFolded(bool),
     /// Transfer a message to the Feeds component
     TransferToFeeds(feeds::Msg),
+    /// Transfer a message to the Tidings component
+    TransferToTidings(tidings::Msg),
     /// Start the update of all feeds
     UpdateAll(IndicesUrls),
     /// Update of the particular feed finished
     UpdateFinished(Index, Tidings),
-    /// Show the tidings of the particular feed
-    ShowTidings(Index),
     /// Show the Tidings page
     ShowTidingsPage,
     /// Hide the Tidings page
     HideTidingsPage,
-    /// Inform Tidings to show the Back button
-    ShowBackButton,
 }
 
 /// Components
@@ -77,8 +75,10 @@ impl ComponentUpdate<AppModel> for Model {
                 self.folded = folded;
             }
             Msg::TransferToFeeds(message) => {
-                // Transfer the message to the feeds
                 components.feeds.send(message).ok();
+            }
+            Msg::TransferToTidings(message) => {
+                components.tidings.send(message).ok();
             }
             Msg::UpdateAll(indices_urls) => {
                 // Transfer these to the update message handler
@@ -99,10 +99,6 @@ impl ComponentUpdate<AppModel> for Model {
                     .send(tidings::Msg::UpdateFinished(index, tidings))
                     .ok();
             }
-            Msg::ShowTidings(index) => {
-                // Inform Tidings to show the tidings of the specified feed
-                components.tidings.send(tidings::Msg::Show(index)).ok();
-            }
             Msg::ShowTidingsPage => {
                 // This is done here and not in the message above
                 // just to make sure that the tidings are ready
@@ -119,9 +115,6 @@ impl ComponentUpdate<AppModel> for Model {
                 // Show the buttons in the end of the Tidings' Header Bar
                 components.tidings.send(tidings::Msg::ShowEndButtons).ok();
             }
-            Msg::ShowBackButton => {
-                components.tidings.send(tidings::Msg::ShowBackButton).ok();
-            }
         }
     }
 }
@@ -131,6 +124,7 @@ impl ComponentUpdate<AppModel> for Model {
 impl relm4::Widgets<Model, AppModel> for Widgets {
     view! {
         leaflet = Some(&adw::Leaflet) {
+            set_transition_type: adw::LeafletTransitionType::Slide,
             connect_folded_notify[
                 feeds_sender = components.feeds.sender(),
                 tidings_sender = components.tidings.sender(),
@@ -139,7 +133,9 @@ impl relm4::Widgets<Model, AppModel> for Widgets {
                     // Update the folding state
                     sender.send(Msg::SetFolded(true)).ok();
                     // Inform Tidings to show the back button
-                    sender.send(Msg::ShowBackButton).ok();
+                    sender.send(Msg::TransferToTidings(
+                        tidings::Msg::ShowBackButton
+                    )).ok();
                     // Show the buttons in the end of the Tidings' Header Bar
                     feeds_sender.send(feeds::Msg::ShowEndButtons).ok();
                 } else {

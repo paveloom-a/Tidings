@@ -8,16 +8,7 @@ use super::Item;
 pub(in crate::app::components::leaflet) type IndicesUrls = Vec<(Index, Box<str>)>;
 
 /// Node in the tree of feeds
-pub(super) enum Node {
-    /// Directory
-    Directory {
-        /// Label
-        label: String,
-        /// Children
-        children: Vec<Index>,
-        /// Parent
-        parent: Option<Index>,
-    },
+pub enum Node {
     /// Feed
     Feed {
         /// Label
@@ -27,6 +18,34 @@ pub(super) enum Node {
         /// Is the feed in the process of being updated?
         updating: bool,
     },
+    /// Directory
+    Directory {
+        /// Label
+        label: String,
+        /// Children
+        children: Vec<Index>,
+        /// Parent
+        parent: Option<Index>,
+    },
+}
+
+impl Node {
+    /// Create a new feed
+    pub(in crate::app) fn new_feed(label: String, url: String) -> Self {
+        Node::Feed {
+            label,
+            url,
+            updating: false,
+        }
+    }
+    /// Create a new directory
+    pub(in crate::app) fn new_directory(label: String) -> Self {
+        Node::Directory {
+            label,
+            children: vec![],
+            parent: None,
+        }
+    }
 }
 
 /// Tree of feeds
@@ -41,11 +60,7 @@ impl Default for Tree {
     fn default() -> Self {
         // Prepare an arena with a root node
         let mut arena = Arena::with_capacity(1);
-        let node = Node::Directory {
-            label: String::from("Root"),
-            children: vec![],
-            parent: None,
-        };
+        let node = Node::new_directory("Root".to_owned());
         let current = arena.insert(node);
         // Initialize the tree
         Self { arena, current }
@@ -54,23 +69,28 @@ impl Default for Tree {
 
 impl Tree {
     /// Insert an item into the tree, return the index
-    pub(super) fn insert(&mut self, parent_index: Index, node: Node) -> Option<Index> {
+    pub(super) fn insert(&mut self, parent_index: Index, mut node: Node) -> Option<Index> {
         // If the specified parent actually exists
-        if self.arena.get(parent_index).is_some() {
+        self.arena.get(parent_index).is_some().then(|| {
+            // If the node is a directory
+            if let Node::Directory { ref mut parent, .. } = node {
+                // Add the index of the parent to the node
+                *parent = Some(parent_index);
+            }
             // Insert the node into the arena
             let child_index = self.arena.insert(node);
-            // If the parent is a node with children
+            // If able to access the children of the parent node
             if let Some(&mut Node::Directory {
                 ref mut children, ..
             }) = self.arena.get_mut(parent_index)
             {
-                // Connect the parent and the child
+                // Add the index of the node to the
+                // list of children of the parent
                 children.push(child_index);
             }
             // Return the index of the child
-            return Some(child_index);
-        }
-        None
+            child_index
+        })
     }
     /// Get a reference to the current node
     fn current(&self) -> Option<&Node> {
