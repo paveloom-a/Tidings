@@ -56,8 +56,8 @@ impl Model {
 enum Msg {
     /// Save the settings
     Save(Settings),
-    /// Close the application
-    Close,
+    /// Quit the application
+    Quit,
     /// Transfer a message to the Feeds component
     TransferToFeeds(leaflet::feeds::Msg),
 }
@@ -90,8 +90,8 @@ impl AppUpdate for Model {
                 // Save the settings
                 self.save_settings(&settings);
             }
-            Msg::Close => {
-                // Close the application
+            Msg::Quit => {
+                // Quit the application
                 self.running = false;
             }
             Msg::TransferToFeeds(message) => {
@@ -121,13 +121,24 @@ impl relm4::Widgets<Model, ()> for Widgets {
                 sender.send(Msg::Save(settings)).ok();
                 gtk::Inhibit(false)
             },
+            add_controller = &gtk::EventControllerKey {
+                connect_key_pressed[
+                    leaflet_sender = components.leaflet.sender(),
+                ] => move |_, key, _, _| {
+                    // Esc: Return to the feeds
+                    if key == gdk::Key::Escape {
+                        leaflet_sender.send(leaflet::Msg::HideTidingsPage).ok();
+                    }
+                    gtk::Inhibit(false)
+                }
+            },
             // Leaflet
             set_content: Some(components.leaflet.root_widget())
         }
     }
     fn pre_view() {
-        // In case of a close request from an
-        // accelerator, close the application
+        // In case of a quit request from an
+        // accelerator, quit the application
         if !model.running {
             // Close the application window
             app_window.close();

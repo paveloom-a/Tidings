@@ -13,14 +13,21 @@
               <object class="GtkShortcutsShortcut">
                 <property name="title" translatable="yes" context="shortcut window">Add New Feed</property>
                 <property name="action-name">win.show-add-feed-dialog</property>
-                <property name="accelerator">&lt;primary&gt;A</property>
+                <property name="accelerator">&lt;primary&gt;a</property>
               </object>
             </child>
             <child>
               <object class="GtkShortcutsShortcut">
                 <property name="title" translatable="yes" context="shortcut window">Add New Directory</property>
                 <property name="action-name">win.show-add-directory-dialog</property>
-                <property name="accelerator">&lt;primary&gt;D</property>
+                <property name="accelerator">&lt;primary&gt;d</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkShortcutsShortcut">
+                <property name="title" translatable="yes" context="shortcut window">Update All Feeds</property>
+                <property name="action-name">win.update-all-feeds</property>
+                <property name="accelerator">&lt;primary&gt;r</property>
               </object>
             </child>
             <child>
@@ -34,7 +41,7 @@
               <object class="GtkShortcutsShortcut">
                 <property name="title" translatable="yes" context="shortcut window">Quit</property>
                 <property name="action-name">app.quit</property>
-                <property name="accelerator">&lt;primary&gt;Q</property>
+                <property name="accelerator">&lt;primary&gt;q</property>
               </object>
             </child>
           </object>

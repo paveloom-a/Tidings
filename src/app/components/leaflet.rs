@@ -25,7 +25,7 @@ pub enum Msg {
     SetFolded(bool),
     /// Transfer a message to the Feeds component
     TransferToFeeds(feeds::Msg),
-    /// Start update of all feeds
+    /// Start the update of all feeds
     UpdateAll(IndicesUrls),
     /// Update of the particular feed finished
     UpdateFinished(Index, Tidings),
