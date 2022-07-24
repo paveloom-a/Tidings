@@ -38,7 +38,7 @@ pub enum Msg {
 }
 
 /// Components
-#[derive(relm4_macros::Components)]
+#[derive(relm4::Components)]
 pub struct Components {
     /// Feeds
     feeds: RelmComponent<feeds::Model, Model>,
@@ -105,26 +105,21 @@ impl ComponentUpdate<AppModel> for Model {
                 if self.folded {
                     // Show the Tidings page
                     self.show_tidings = true;
-                    // Hide the buttons in the end of the Tidings' Header Bar
-                    components.tidings.send(tidings::Msg::HideEndButtons).ok();
                 }
             }
             Msg::HideTidingsPage => {
                 // Hide the Tidings page
                 self.show_tidings = false;
-                // Show the buttons in the end of the Tidings' Header Bar
-                components.tidings.send(tidings::Msg::ShowEndButtons).ok();
             }
         }
     }
 }
 
 #[allow(clippy::missing_docs_in_private_items)]
-#[relm4_macros::widget(pub)]
+#[relm4::widget(pub)]
 impl relm4::Widgets<Model, AppModel> for Widgets {
     view! {
         leaflet = Some(&adw::Leaflet) {
-            set_transition_type: adw::LeafletTransitionType::Slide,
             connect_folded_notify[
                 feeds_sender = components.feeds.sender(),
                 tidings_sender = components.tidings.sender(),
@@ -132,19 +127,17 @@ impl relm4::Widgets<Model, AppModel> for Widgets {
                 if leaflet.is_folded() {
                     // Update the folding state
                     sender.send(Msg::SetFolded(true)).ok();
-                    // Inform Tidings to show the back button
-                    sender.send(Msg::TransferToTidings(
-                        tidings::Msg::ShowBackButton
-                    )).ok();
+                    // Inform Tidings to address the folded state
+                    tidings_sender.send(tidings::Msg::Fold).ok();
                     // Show the buttons in the end of the Tidings' Header Bar
                     feeds_sender.send(feeds::Msg::ShowEndButtons).ok();
                 } else {
                     // Update the folding state
                     sender.send(Msg::SetFolded(false)).ok();
+                    // Inform Tidings to address the unfolded state
+                    tidings_sender.send(tidings::Msg::Unfold).ok();
                     // Hide the buttons in the end of the Feeds' Header Bar
                     feeds_sender.send(feeds::Msg::HideEndButtons).ok();
-                    // Inform Tidings to hide the back button
-                    tidings_sender.send(tidings::Msg::HideBackButton).ok();
                     // Hide the Tidings page (won't be shown if folded right after)
                     sender.send(Msg::HideTidingsPage).ok();
                 }

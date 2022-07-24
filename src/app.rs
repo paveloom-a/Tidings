@@ -63,7 +63,7 @@ enum Msg {
 }
 
 /// Components
-#[derive(relm4_macros::Components)]
+#[derive(relm4::Components)]
 struct Components {
     /// About Dialog
     about_dialog: RelmComponent<about_dialog::Model, Model>,
@@ -106,7 +106,7 @@ impl AppUpdate for Model {
 }
 
 #[allow(clippy::missing_docs_in_private_items)]
-#[relm4_macros::widget]
+#[relm4::widget]
 impl relm4::Widgets<Model, ()> for Widgets {
     view! {
         // Application Window

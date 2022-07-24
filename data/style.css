@@ -1,4 +1,10 @@
+/* Make the title in the header stand out */
 .title-header{
   font-size: 36px;
   font-weight: bold;
+}
+
+/* Remove the default hover effect from the ListView rows */
+listview > row:hover {
+  background-color: unset;
 }

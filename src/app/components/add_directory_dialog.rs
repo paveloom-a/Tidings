@@ -14,8 +14,8 @@ use super::{AppModel, AppMsg};
 pub struct Model {
     /// Is the window visible?
     visible: bool,
-    /// Directory label entry buffer
-    label: gtk::EntryBuffer,
+    /// Directory title entry buffer
+    title: gtk::EntryBuffer,
     /// Is the directory allowed to be added?
     allowed: bool,
 }
@@ -42,7 +42,7 @@ impl ComponentUpdate<AppModel> for Model {
     fn init_model(_parent_model: &AppModel) -> Self {
         Self {
             visible: false,
-            label: gtk::EntryBuffer::default(),
+            title: gtk::EntryBuffer::default(),
             allowed: false,
         }
     }
@@ -59,14 +59,14 @@ impl ComponentUpdate<AppModel> for Model {
                 // Hide the widget
                 self.visible = false;
                 // Empty the buffer
-                self.label.delete_text(0, None);
+                self.title.delete_text(0, None);
             }
-            Msg::Check => self.allowed = !self.label.text().is_empty(),
+            Msg::Check => self.allowed = !self.title.text().is_empty(),
             Msg::Add => {
-                // Get the label
-                let label = self.label.text();
+                // Get the title
+                let title = self.title.text();
                 // Prepare a node
-                let node = feeds::tree::Node::new_directory(label);
+                let node = feeds::tree::Node::new_directory(title);
                 // Prepare a message for the Feeds component
                 let msg = feeds::Msg::Add(node);
                 // Send the message
@@ -79,7 +79,7 @@ impl ComponentUpdate<AppModel> for Model {
 }
 
 #[allow(clippy::missing_docs_in_private_items)]
-#[relm4_macros::widget(pub)]
+#[relm4::widget(pub)]
 impl relm4::Widgets<Model, AppModel> for Widgets {
     view! {
         add_directory_dialog = gtk::Dialog {
@@ -111,13 +111,13 @@ impl relm4::Widgets<Model, AppModel> for Widgets {
                         add_css_class: "boxed-list",
                         // Action Row
                         append = &adw::ActionRow {
-                            set_title: "Label",
-                            // Directory Label
-                            add_suffix: label_entry = &gtk::Entry {
+                            set_title: "Title",
+                            // Directory title entry
+                            add_suffix: title_entry = &gtk::Entry {
                                 set_margin_top: 7,
                                 set_margin_bottom: 7,
-                                set_buffer: &model.label,
-                                set_input_purpose: gtk::InputPurpose::Url,
+                                set_buffer: &model.title,
+                                set_input_purpose: gtk::InputPurpose::Name,
                                 set_activates_default: true,
                             },
                             // Add Button
@@ -135,14 +135,14 @@ impl relm4::Widgets<Model, AppModel> for Widgets {
         }
     }
     fn pre_view() {
-        // Focus on the label entry when opening the dialog
+        // Focus on the title entry when opening the dialog
         if !add_directory_dialog.is_visible() {
-            label_entry.grab_focus();
+            title_entry.grab_focus();
         }
     }
     fn post_init() {
         // Check if adding the directory is allowed on an entry change
-        label_entry.connect_changed({
+        title_entry.connect_changed({
             let sender = sender.clone();
             move |_| {
                 sender.send(Msg::Check).ok();

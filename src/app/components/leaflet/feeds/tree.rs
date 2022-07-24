@@ -11,8 +11,8 @@ pub(in crate::app::components::leaflet) type IndicesUrls = Vec<(Index, Box<str>)
 pub enum Node {
     /// Feed
     Feed {
-        /// Label
-        label: String,
+        /// Title
+        title: String,
         /// URL
         url: String,
         /// Is the feed in the process of being updated?
@@ -20,8 +20,8 @@ pub enum Node {
     },
     /// Directory
     Directory {
-        /// Label
-        label: String,
+        /// Title
+        title: String,
         /// Children
         children: Vec<Index>,
         /// Parent
@@ -31,17 +31,17 @@ pub enum Node {
 
 impl Node {
     /// Create a new feed
-    pub(in crate::app) fn new_feed(label: String, url: String) -> Self {
+    pub(in crate::app) fn new_feed(title: String, url: String) -> Self {
         Node::Feed {
-            label,
+            title,
             url,
             updating: false,
         }
     }
     /// Create a new directory
-    pub(in crate::app) fn new_directory(label: String) -> Self {
+    pub(in crate::app) fn new_directory(title: String) -> Self {
         Node::Directory {
-            label,
+            title,
             children: vec![],
             parent: None,
         }

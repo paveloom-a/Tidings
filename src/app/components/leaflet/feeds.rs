@@ -4,14 +4,14 @@ mod list;
 pub mod tree;
 
 use generational_arena::Index;
-use gtk::prelude::{BoxExt, ButtonExt, Cast, ListModelExt, OrientableExt, StaticType, WidgetExt};
-use relm4::{ComponentUpdate, Sender};
+use gtk::prelude::{BoxExt, ButtonExt, Cast, ListModelExt, OrientableExt, WidgetExt};
+use relm4::{ComponentUpdate, Sender, WidgetPlus};
 
 use super::tidings;
 use crate::app::actions::{
     ShowAboutDialog, ShowAddDirectoryDialog, ShowAddFeedDialog, ShowHelpOverlay,
 };
-use list::{Item, List};
+use list::{Item, List, ListItemExt};
 use tree::{Node, Tree};
 
 /// Model
@@ -153,31 +153,37 @@ impl ComponentUpdate<super::Model> for Model {
 fn list_view(model: &Model) -> gtk::ListView {
     // Create a factory
     let factory = gtk::SignalListItemFactory::new();
+    // Setup the widget
     factory.connect_setup(move |_, list_item| {
-        // Create a label
-        let label = gtk::Label::new(None);
-        list_item.set_child(Some(&label));
-        // Create expressions describing `list_item -> item -> label`
-        let list_item_expression = gtk::ConstantExpression::new(list_item);
-        let feed_object_expression = gtk::PropertyExpression::new(
-            gtk::ListItem::static_type(),
-            Some(&list_item_expression),
-            "item",
+        list_item.setup();
+    });
+    // Bind it to specific item
+    factory.connect_bind(move |_, list_item| {
+        list_item.modify(
+            // Modify the icon
+            |icon, item| {
+                // If the item is a directory
+                if item.is_dir() {
+                    // Set a directory icon
+                    icon.set_icon_name(Some("inode-directory-symbolic"));
+                } else {
+                    // Otherwise, set a favicon
+                    icon.set_icon_name(Some("emblem-shared-symbolic"));
+                }
+            },
+            // Modify the title
+            |title, item| {
+                // Set the title
+                title.set_label(&item.title());
+            },
         );
-        let label_expression = gtk::PropertyExpression::new(
-            Item::static_type(),
-            Some(&feed_object_expression),
-            "label",
-        );
-        // Bind the labels
-        label_expression.bind(&label, "label", Some(&label));
     });
     // Create a filter model
     let filter_model = gtk::FilterListModel::new(Some(&model.list.store), gtk::Filter::NONE);
     // Create a sort model
     let sort_model = gtk::SortListModel::new(Some(&filter_model), gtk::Sorter::NONE);
     // Create a selection model
-    let selection_model = gtk::SingleSelection::new(Some(&sort_model));
+    let selection_model = gtk::NoSelection::new(Some(&sort_model));
     // Create a List View
     gtk::ListView::new(Some(&selection_model), Some(&factory))
 }
@@ -186,10 +192,10 @@ fn list_view(model: &Model) -> gtk::ListView {
 fn list_view_connect_activate(sender: &Sender<Msg>, list_view: &gtk::ListView, position: u32) {
     // Get the model
     if let Some(list_model) = list_view.model() {
-        // Get the item at the position
-        if let Some(item) = list_model.item(position) {
+        // Get the GObject at the position
+        if let Some(object) = list_model.item(position) {
             // Downcast the object
-            if let Ok(item) = item.downcast::<Item>() {
+            if let Ok(item) = object.downcast::<Item>() {
                 // If this item is a directory
                 if item.is_dir() {
                     // If the position can be casted from `u32` to `usize`
@@ -212,7 +218,7 @@ fn list_view_connect_activate(sender: &Sender<Msg>, list_view: &gtk::ListView, p
 }
 
 #[allow(clippy::missing_docs_in_private_items)]
-#[relm4_macros::widget(pub)]
+#[relm4::widget(pub)]
 impl relm4::Widgets<Model, super::Model> for Widgets {
     view! {
         // Box
@@ -262,12 +268,13 @@ impl relm4::Widgets<Model, super::Model> for Widgets {
                 },
             },
             // Scrolled Window
-            append = &gtk::ScrolledWindow {
+            append: scrolled_window = &gtk::ScrolledWindow {
                 set_hscrollbar_policy: gtk::PolicyType::Never,
                 set_hexpand: true,
                 set_vexpand: true,
                 // List View
                 set_child = Some(&list_view(model) -> gtk::ListView) {
+                    set_margin_all: 4,
                     set_single_click_activate: true,
                     connect_activate(sender) => move |list_view, position| {
                         list_view_connect_activate(
@@ -279,6 +286,12 @@ impl relm4::Widgets<Model, super::Model> for Widgets {
                 }
             }
         }
+    }
+    fn pre_view() {
+        // This is a trick to make the Scrolled Window recalculate
+        // the vertical adjustment. This doesn't happen by default
+        // after clearing the list
+        scrolled_window.set_vadjustment(Option::<&gtk::Adjustment>::None);
     }
     menu! {
         main_menu: {

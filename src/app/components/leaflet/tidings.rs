@@ -4,14 +4,12 @@ pub(super) mod dictionary;
 mod list;
 
 use generational_arena::Index;
-use gtk::prelude::{
-    BoxExt, ButtonExt, Cast, ListModelExt, ObjectExt, OrientableExt, StaticType, WidgetExt,
-};
-use relm4::{ComponentUpdate, Sender};
+use gtk::prelude::{BoxExt, ButtonExt, Cast, ObjectExt, OrientableExt, WidgetExt};
+use relm4::{ComponentUpdate, Sender, WidgetPlus};
 
 use crate::app::actions::{ShowAboutDialog, ShowHelpOverlay};
 use dictionary::{Dictionary, Tidings};
-use list::{Item, List};
+use list::{Item, List, ListItemExt};
 
 /// Model
 pub struct Model {
@@ -21,10 +19,27 @@ pub struct Model {
     list: List,
     /// Current index displayed
     current: Option<Index>,
-    /// Is the back button visible?
-    back_button_visible: bool,
-    /// Are the end buttons visible in the header bar?
-    end_buttons_visible: bool,
+    /// Is the parent leaflet in the folded state?
+    folded: bool,
+}
+
+impl Model {
+    /// Refresh the list with the tidings
+    /// of the currently selected feed
+    pub(super) fn refresh(&mut self) {
+        // If there is a currently selected feed
+        if let Some(current) = self.current {
+            // If there are tidings for this index
+            if let Some(tidings) = self.dictionary.get(&current) {
+                // Update the list with them
+                self.list.update(tidings);
+            // Otherwise,
+            } else {
+                // Render the list as empty
+                self.list.update(&[]);
+            }
+        }
+    }
 }
 
 /// Messages
@@ -33,14 +48,10 @@ pub enum Msg {
     UpdateFinished(Index, Tidings),
     /// Show the tidings of the particular feed
     Show(Index),
-    /// Show the back button
-    ShowBackButton,
-    /// Hide the back button
-    HideBackButton,
-    /// Show end buttons in the header bar
-    ShowEndButtons,
-    /// Hide end buttons in the header bar
-    HideEndButtons,
+    /// Set the folded state
+    Fold,
+    /// Unset the folded state
+    Unfold,
     /// Navigate back in the leaflet
     Back,
 }
@@ -61,15 +72,16 @@ impl ComponentUpdate<super::Model> for Model {
             dictionary,
             list,
             current: None,
-            back_button_visible: false,
-            end_buttons_visible: true,
+            // Whether it's folded is restored
+            // on restart by the parent leaflet
+            folded: false,
         }
     }
     fn update(
         &mut self,
         msg: Msg,
         _components: &(),
-        sender: Sender<Msg>,
+        _sender: Sender<Msg>,
         parent_sender: Sender<super::Msg>,
     ) {
         match msg {
@@ -78,41 +90,28 @@ impl ComponentUpdate<super::Model> for Model {
                 // using the index as a key
                 self.dictionary.insert(index, tidings);
                 // If there is a currently selected feed
-                if let Some(ref mut current) = self.current {
+                if let Some(current) = self.current {
                     // And its index is the same as this one
-                    if index == *current {
-                        // Update the list
-                        sender.send(Msg::Show(index)).ok();
+                    if index == current {
+                        // Refresh the list
+                        self.refresh();
                     }
                 }
             }
             Msg::Show(index) => {
                 // Update the current index
                 self.current = Some(index);
-                // If there are tidings for this index
-                if let Some(tidings) = self.dictionary.get(index) {
-                    // Update the list with them
-                    self.list.update(tidings);
-                // Otherwise,
-                } else {
-                    // Render the list as empty
-                    self.list.update(&[]);
-                }
+                // Refresh the list
+                self.refresh();
                 // Inform the leaflet that the Tidings page is ready to be shown
                 // (this only matters if the leaflet is folded)
                 parent_sender.send(super::Msg::ShowTidingsPage).ok();
             }
-            Msg::ShowBackButton => {
-                self.back_button_visible = true;
+            Msg::Fold => {
+                self.folded = true;
             }
-            Msg::HideBackButton => {
-                self.back_button_visible = false;
-            }
-            Msg::ShowEndButtons => {
-                self.end_buttons_visible = true;
-            }
-            Msg::HideEndButtons => {
-                self.end_buttons_visible = false;
+            Msg::Unfold => {
+                self.folded = false;
             }
             Msg::Back => {
                 // Inform the leaflet that the Tidings page should be hidden
@@ -124,49 +123,39 @@ impl ComponentUpdate<super::Model> for Model {
 
 /// Get a `ListView` from the model
 fn list_view(model: &Model) -> gtk::ListView {
-    // Prepare a factory
+    // Create a factory
     let factory = gtk::SignalListItemFactory::new();
+    // Setup the widget
     factory.connect_setup(move |_, list_item| {
-        // Attach a label to the list item
-        let label = gtk::Label::new(None);
-        list_item.set_child(Some(&label));
-        // Create expressions describing `list_item -> item -> label`
-        let list_item_expression = gtk::ConstantExpression::new(list_item);
-        let feed_object_expression = gtk::PropertyExpression::new(
-            gtk::ListItem::static_type(),
-            Some(&list_item_expression),
-            "item",
-        );
-        let label_expression = gtk::PropertyExpression::new(
-            Item::static_type(),
-            Some(&feed_object_expression),
-            "label",
-        );
-        // Bind the labels
-        label_expression.bind(&label, "label", Some(&label));
+        list_item.setup();
     });
-    // Prepare a filter
-    let filter = gtk::CustomFilter::new(move |obj| {
-        // Downcast the object
-        if let Some(item) = obj.downcast_ref::<Item>() {
-            // Get the label
-            let _label: String = item.property("label");
-            return true;
-        }
-        false
+    // Bind it to specific item
+    factory.connect_bind(move |_, list_item| {
+        list_item.modify(
+            // Modify the icon
+            |icon, _item| {
+                // Set the favicon
+                icon.set_icon_name(Some("emblem-shared-symbolic"));
+            },
+            // Modify the title
+            |title, item| {
+                // Set the title
+                title.set_label(&item.title());
+            },
+        );
     });
     // Create a filter model
-    let filter_model = gtk::FilterListModel::new(Some(&model.list.store), Some(&filter));
+    let filter_model = gtk::FilterListModel::new(Some(&model.list.store), gtk::Filter::NONE);
     // Prepare a sorter
     let sorter = gtk::CustomSorter::new(move |obj_1, obj_2| {
         // Downcast the objects
         if let Some(item_1) = obj_1.downcast_ref::<Item>() {
             if let Some(item_2) = obj_2.downcast_ref::<Item>() {
-                // Get the labels
-                let label_1: String = item_1.property("label");
-                let label_2: String = item_2.property("label");
+                // Get the titles
+                let title_1: String = item_1.property("title");
+                let title_2: String = item_2.property("title");
                 // Reverse the sorting order (large strings come first)
-                return label_2.cmp(&label_1).into();
+                return title_2.cmp(&title_1).into();
             }
         }
         // Default to
@@ -175,28 +164,13 @@ fn list_view(model: &Model) -> gtk::ListView {
     // Create a sorter model
     let sort_model = gtk::SortListModel::new(Some(&filter_model), Some(&sorter));
     // Create a selection model
-    let selection_model = gtk::SingleSelection::new(Some(&sort_model));
+    let selection_model = gtk::NoSelection::new(Some(&sort_model));
     // Create a List View
     gtk::ListView::new(Some(&selection_model), Some(&factory))
 }
 
-/// Connect the activate event of the List View
-fn list_view_connect_activate(_sender: &Sender<Msg>, list_view: &gtk::ListView, position: u32) {
-    // Get the model
-    if let Some(model) = list_view.model() {
-        // Get the item at the position
-        if let Some(item) = model.item(position) {
-            // Downcast the object
-            if let Ok(item) = item.downcast::<Item>() {
-                // Update the label
-                item.update_string();
-            }
-        }
-    }
-}
-
 #[allow(clippy::missing_docs_in_private_items)]
-#[relm4_macros::widget(pub)]
+#[relm4::widget(pub)]
 impl relm4::Widgets<Model, super::Model> for Widgets {
     view! {
         // Box
@@ -206,10 +180,10 @@ impl relm4::Widgets<Model, super::Model> for Widgets {
             // Header Bar
             append: header_bar = &adw::HeaderBar {
                 set_show_start_title_buttons: watch!(
-                    model.end_buttons_visible
+                    !model.folded
                 ),
                 set_show_end_title_buttons: watch!(
-                    model.end_buttons_visible
+                    !model.folded
                 ),
                 // Title
                 set_title_widget = Some(&adw::WindowTitle) {
@@ -217,7 +191,7 @@ impl relm4::Widgets<Model, super::Model> for Widgets {
                 },
                 // Go Back Button
                 pack_start = &gtk::Button {
-                    set_visible: watch!(model.back_button_visible),
+                    set_visible: watch!(model.folded),
                     set_icon_name: "go-previous-symbolic",
                     set_tooltip_text: Some("Go Back"),
                     connect_clicked(sender) => move |_| {
@@ -226,25 +200,29 @@ impl relm4::Widgets<Model, super::Model> for Widgets {
                 },
                 // Menu Button
                 pack_end = &gtk::MenuButton {
-                    set_visible: watch!(model.end_buttons_visible),
+                    set_visible: watch!(!model.folded),
                     set_icon_name: "open-menu-symbolic",
                     set_menu_model: Some(&main_menu),
                 },
             },
             // Scrolled Window
-            append = &gtk::ScrolledWindow {
+            append: scrolled_window = &gtk::ScrolledWindow {
                 set_hscrollbar_policy: gtk::PolicyType::Never,
                 set_hexpand: true,
                 set_vexpand: true,
                 // List View
                 set_child = Some(&list_view(model) -> gtk::ListView) {
+                    set_margin_all: 4,
                     set_single_click_activate: true,
-                    connect_activate(sender) => move |list_view, position| {
-                        list_view_connect_activate(&sender, list_view, position);
-                    }
                 }
             }
         }
+    }
+    fn pre_view() {
+        // This is a trick to make the Scrolled Window recalculate
+        // the vertical adjustment. This doesn't happen by default
+        // after clearing the list
+        scrolled_window.set_vadjustment(Option::<&gtk::Adjustment>::None);
     }
     menu! {
         main_menu: {

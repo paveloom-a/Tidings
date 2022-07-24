@@ -10,8 +10,8 @@ pub type Tidings = Vec<Tiding>;
 
 /// Tiding
 pub struct Tiding {
-    /// Label
-    pub label: String,
+    /// Title
+    pub title: String,
 }
 
 /// Hash map type
@@ -41,7 +41,7 @@ impl Dictionary {
         }
     }
     /// Get tidings from the index
-    pub(super) fn get(&self, index: Index) -> Option<&[Tiding]> {
-        self.hash_map.get(&index).map(std::vec::Vec::as_slice)
+    pub(super) fn get(&self, index: &Index) -> Option<&[Tiding]> {
+        self.hash_map.get(index).map(std::vec::Vec::as_slice)
     }
 }

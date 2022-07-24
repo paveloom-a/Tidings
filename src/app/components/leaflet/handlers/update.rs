@@ -49,7 +49,7 @@ impl MessageHandler<super::Model> for AsyncHandler {
                                 tokio::time::sleep(std::time::Duration::from_secs(1)).await;
                                 // Prepare some fake results
                                 let tidings = vec![Tiding {
-                                    label: index.into_raw_parts().0.to_string(),
+                                    title: index.into_raw_parts().0.to_string(),
                                 }];
                                 // Notify Feeds and Tidings that the process of
                                 // updating of this particular feed has finished

@@ -46,7 +46,7 @@ impl ComponentUpdate<AppModel> for Model {
 }
 
 #[allow(clippy::missing_docs_in_private_items)]
-#[relm4_macros::widget(pub)]
+#[relm4::widget(pub)]
 impl relm4::Widgets<Model, AppModel> for Widgets {
     view! {
         gtk::AboutDialog {
