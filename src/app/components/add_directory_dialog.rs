@@ -5,10 +5,13 @@ use gtk::prelude::{
     BoxExt, ButtonExt, EditableExt, EntryBufferExtManual, EntryExt, GtkWindowExt, OrientableExt,
     WidgetExt,
 };
-use relm4::{ComponentUpdate, Sender};
+use relm4::{ComponentParts, ComponentSender, MessageBroker, SimpleComponent};
 
 use super::leaflet::feeds;
-use super::{AppModel, AppMsg};
+use super::AppMsg;
+
+/// Message broker
+pub static BROKER: MessageBroker<Model> = MessageBroker::new();
 
 /// Model
 pub struct Model {
@@ -21,6 +24,7 @@ pub struct Model {
 }
 
 /// Messages
+#[derive(Debug)]
 pub enum Msg {
     /// Show the dialog
     Show,
@@ -32,27 +36,30 @@ pub enum Msg {
     Add,
 }
 
-impl relm4::Model for Model {
-    type Msg = Msg;
+#[allow(clippy::clone_on_ref_ptr)]
+#[allow(clippy::missing_docs_in_private_items)]
+#[allow(unused_variables)]
+#[relm4::component(pub)]
+impl SimpleComponent for Model {
+    type Init = ();
+    type Input = Msg;
+    type Output = AppMsg;
     type Widgets = Widgets;
-    type Components = ();
-}
-
-impl ComponentUpdate<AppModel> for Model {
-    fn init_model(_parent_model: &AppModel) -> Self {
-        Self {
+    fn init(
+        _init: Self::Init,
+        root: &Self::Root,
+        sender: ComponentSender<Self>,
+    ) -> ComponentParts<Self> {
+        // Initialize the model
+        let model = Self {
             visible: false,
             title: gtk::EntryBuffer::default(),
             allowed: false,
-        }
+        };
+        let widgets = view_output!();
+        ComponentParts { model, widgets }
     }
-    fn update(
-        &mut self,
-        msg: Msg,
-        _components: &(),
-        sender: Sender<Msg>,
-        parent_sender: Sender<AppMsg>,
-    ) {
+    fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
             Msg::Show => self.visible = true,
             Msg::Hide => {
@@ -70,35 +77,38 @@ impl ComponentUpdate<AppModel> for Model {
                 // Prepare a message for the Feeds component
                 let msg = feeds::Msg::Add(node);
                 // Send the message
-                parent_sender.send(AppMsg::TransferToFeeds(msg)).ok();
+                sender.output(AppMsg::TransferToFeeds(msg));
                 // Hide the dialog
-                sender.send(Msg::Hide).ok();
+                sender.input(Msg::Hide);
             }
         }
     }
-}
-
-#[allow(clippy::missing_docs_in_private_items)]
-#[relm4::widget(pub)]
-impl relm4::Widgets<Model, AppModel> for Widgets {
+    fn pre_view() {
+        // Focus on the title entry when opening the dialog
+        if !add_directory_dialog.is_visible() {
+            title_entry.grab_focus();
+        }
+    }
     view! {
         add_directory_dialog = gtk::Dialog {
             set_title: Some("Add New Directory"),
             set_width_request: 313,
             set_modal: true,
-            set_transient_for: parent!(Some(&parent_widgets.app_window)),
             set_vexpand: false,
-            set_visible: watch!(model.visible),
+            #[watch]
+            set_visible: model.visible,
             set_default_widget: Some(&add_button),
-            connect_close_request(sender) => move |_| {
-                sender.send(Msg::Hide).ok();
+            connect_close_request[sender] => move |_| {
+                sender.input(Msg::Hide);
                 gtk::Inhibit(false)
             },
             // Clamp
-            set_child = Some(&adw::Clamp) {
+            #[wrap(Some)]
+            set_child = &adw::Clamp {
                 set_maximum_size: 400,
                 // Box
-                set_child = Some(&gtk::Box) {
+                #[wrap(Some)]
+                set_child = &gtk::Box {
                     set_orientation: gtk::Orientation::Vertical,
                     set_margin_top: 24,
                     set_margin_bottom: 24,
@@ -119,6 +129,10 @@ impl relm4::Widgets<Model, AppModel> for Widgets {
                                 set_buffer: &model.title,
                                 set_input_purpose: gtk::InputPurpose::Name,
                                 set_activates_default: true,
+                                // Check if adding the directory is allowed on an entry change
+                                connect_changed[sender] => move |_| {
+                                    sender.input(Msg::Check);
+                                }
                             },
                             // Add Button
                             add_suffix: add_button = &gtk::Button {
@@ -126,33 +140,17 @@ impl relm4::Widgets<Model, AppModel> for Widgets {
                                 set_margin_bottom: 7,
                                 set_css_classes: &["suggested-action", "circular"],
                                 set_icon_name: "plus-large-symbolic",
-                                set_sensitive: watch!(model.allowed),
+                                #[watch]
+                                set_sensitive: model.allowed,
+                                // Add on the press of the button
+                                connect_activate[sender] => move |_| {
+                                    sender.input(Msg::Add);
+                                }
                             },
                         }
                     },
                 }
             },
         }
-    }
-    fn pre_view() {
-        // Focus on the title entry when opening the dialog
-        if !add_directory_dialog.is_visible() {
-            title_entry.grab_focus();
-        }
-    }
-    fn post_init() {
-        // Check if adding the directory is allowed on an entry change
-        title_entry.connect_changed({
-            let sender = sender.clone();
-            move |_| {
-                sender.send(Msg::Check).ok();
-            }
-        });
-        // Add on the press of the button
-        add_button.connect_activate({
-            move |_| {
-                sender.send(Msg::Add).ok();
-            }
-        });
     }
 }

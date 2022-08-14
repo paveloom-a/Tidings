@@ -4,12 +4,18 @@ pub mod feeds;
 mod handlers;
 pub mod tidings;
 
-use generational_arena::Index;
-use relm4::{ComponentUpdate, RelmComponent, RelmMsgHandler, Sender};
+use relm4::{
+    Component, ComponentController, ComponentParts, ComponentSender, Controller, MessageBroker,
+    SimpleComponent,
+};
 
-use super::{AppModel, AppMsg};
-use crate::app::leaflet::tidings::dictionary::Tidings;
+use std::convert::identity;
+
+use super::AppMsg;
 use feeds::tree::IndicesUrls;
+
+/// Message broker
+pub static BROKER: MessageBroker<Model> = MessageBroker::new();
 
 /// Model
 pub struct Model {
@@ -17,9 +23,16 @@ pub struct Model {
     folded: bool,
     /// Show tidings in the folded state?
     show_tidings: bool,
+    /// Feeds
+    feeds: Controller<feeds::Model>,
+    /// Tidings
+    tidings: Controller<tidings::Model>,
+    /// Update message handler
+    update: Controller<handlers::update::Model>,
 }
 
 /// Messages
+#[derive(Debug)]
 pub enum Msg {
     /// Set the folding state
     SetFolded(bool),
@@ -29,75 +42,75 @@ pub enum Msg {
     TransferToTidings(tidings::Msg),
     /// Start the update of all feeds
     UpdateAll(IndicesUrls),
-    /// Update of the particular feed finished
-    UpdateFinished(Index, Tidings),
     /// Show the Tidings page
     ShowTidingsPage,
     /// Hide the Tidings page
     HideTidingsPage,
 }
 
-/// Components
-#[derive(relm4::Components)]
-pub struct Components {
-    /// Feeds
-    feeds: RelmComponent<feeds::Model, Model>,
-    /// Tidings
-    tidings: RelmComponent<tidings::Model, Model>,
-    /// Update message handler
-    update: RelmMsgHandler<handlers::update::AsyncHandler, Model>,
-}
-
-impl relm4::Model for Model {
-    type Msg = Msg;
+#[allow(clippy::missing_docs_in_private_items)]
+#[relm4::component(pub)]
+impl SimpleComponent for Model {
+    type Init = ();
+    type Input = Msg;
+    type Output = AppMsg;
     type Widgets = Widgets;
-    type Components = Components;
-}
-
-impl ComponentUpdate<AppModel> for Model {
-    fn init_model(_parent_model: &AppModel) -> Self {
-        Self {
+    fn init(
+        _init: Self::Init,
+        root: &Self::Root,
+        sender: ComponentSender<Self>,
+    ) -> ComponentParts<Self> {
+        // Initialize the components
+        let feeds = feeds::Model::builder()
+            .launch_with_broker((), &feeds::BROKER)
+            .forward(sender.input_sender(), identity);
+        let tidings = tidings::Model::builder()
+            .launch_with_broker((), &tidings::BROKER)
+            .forward(sender.input_sender(), identity);
+        let update = handlers::update::Model::builder()
+            .launch_with_broker((), &handlers::update::BROKER)
+            .forward(sender.input_sender(), identity);
+        // Initialize the model
+        let model = Self {
             // Whether it's folded is restored on restart
             // by the `connect_folded_notify` function
             folded: false,
             show_tidings: false,
-        }
+            feeds,
+            tidings,
+            update,
+        };
+        let widgets = view_output!();
+        // Attaching components manually just to make
+        // sure the separator isn't navigatable
+        //
+        // Feeds
+        widgets.leaflet.prepend(model.feeds.widget());
+        // Separator
+        let separator_page = widgets
+            .leaflet
+            .append(&gtk::Separator::new(gtk::Orientation::Horizontal));
+        separator_page.set_navigatable(false);
+        // Tidings
+        widgets.leaflet.append(model.tidings.widget());
+        ComponentParts { model, widgets }
     }
-    fn update(
-        &mut self,
-        msg: Msg,
-        components: &Components,
-        _sender: Sender<Msg>,
-        _parent_sender: Sender<AppMsg>,
-    ) {
+    fn update(&mut self, msg: Self::Input, _sender: ComponentSender<Self>) {
         match msg {
             Msg::SetFolded(folded) => {
                 self.folded = folded;
             }
             Msg::TransferToFeeds(message) => {
-                components.feeds.send(message).ok();
+                self.feeds.sender().send(message);
             }
             Msg::TransferToTidings(message) => {
-                components.tidings.send(message).ok();
+                self.tidings.sender().send(message);
             }
             Msg::UpdateAll(indices_urls) => {
                 // Transfer these to the update message handler
-                components
-                    .update
+                self.update
+                    .sender()
                     .send(handlers::update::Msg::UpdateAll(indices_urls));
-            }
-            Msg::UpdateFinished(index, tidings) => {
-                // Remove the updating status of the feed
-                components
-                    .feeds
-                    .send(feeds::Msg::UpdateFinished(index))
-                    .ok();
-                // Send the tidings to the Tidings component,
-                // so they're stored in the dictionary
-                components
-                    .tidings
-                    .send(tidings::Msg::UpdateFinished(index, tidings))
-                    .ok();
             }
             Msg::ShowTidingsPage => {
                 // This is done here and not in the message above
@@ -113,49 +126,6 @@ impl ComponentUpdate<AppModel> for Model {
             }
         }
     }
-}
-
-#[allow(clippy::missing_docs_in_private_items)]
-#[relm4::widget(pub)]
-impl relm4::Widgets<Model, AppModel> for Widgets {
-    view! {
-        leaflet = Some(&adw::Leaflet) {
-            connect_folded_notify[
-                feeds_sender = components.feeds.sender(),
-                tidings_sender = components.tidings.sender(),
-            ] => move |leaflet| {
-                if leaflet.is_folded() {
-                    // Update the folding state
-                    sender.send(Msg::SetFolded(true)).ok();
-                    // Inform Tidings to address the folded state
-                    tidings_sender.send(tidings::Msg::Fold).ok();
-                    // Show the buttons in the end of the Tidings' Header Bar
-                    feeds_sender.send(feeds::Msg::ShowEndButtons).ok();
-                } else {
-                    // Update the folding state
-                    sender.send(Msg::SetFolded(false)).ok();
-                    // Inform Tidings to address the unfolded state
-                    tidings_sender.send(tidings::Msg::Unfold).ok();
-                    // Hide the buttons in the end of the Feeds' Header Bar
-                    feeds_sender.send(feeds::Msg::HideEndButtons).ok();
-                    // Hide the Tidings page (won't be shown if folded right after)
-                    sender.send(Msg::HideTidingsPage).ok();
-                }
-            },
-        }
-    }
-    fn post_init() {
-        // Doing this manually just to make
-        // sure the separator isn't navigatable
-
-        // Feeds
-        leaflet.prepend(components.feeds.root_widget());
-        // Separator
-        let separator_page = leaflet.append(&gtk::Separator::new(gtk::Orientation::Horizontal));
-        separator_page.set_navigatable(false);
-        // Tidings
-        leaflet.append(components.tidings.root_widget());
-    }
     fn pre_view() {
         if model.folded && model.show_tidings {
             // Navigate forward to Tidings
@@ -163,6 +133,30 @@ impl relm4::Widgets<Model, AppModel> for Widgets {
         } else {
             // Navigate back to Feeds
             leaflet.navigate(adw::NavigationDirection::Back);
+        }
+    }
+    view! {
+        #[wrap(Some)]
+        leaflet = &adw::Leaflet {
+            connect_folded_notify => move |leaflet| {
+                if leaflet.is_folded() {
+                    // Update the folding state
+                    sender.input(Msg::SetFolded(true));
+                    // Inform Tidings to address the folded state
+                    tidings::BROKER.send(tidings::Msg::Fold);
+                    // Show the buttons in the end of the Tidings' Header Bar
+                    feeds::BROKER.send(feeds::Msg::ShowEndButtons);
+                } else {
+                    // Update the folding state
+                    sender.input(Msg::SetFolded(false));
+                    // Inform Tidings to address the unfolded state
+                    tidings::BROKER.send(tidings::Msg::Unfold);
+                    // Hide the buttons in the end of the Feeds' Header Bar
+                    feeds::BROKER.send(feeds::Msg::HideEndButtons);
+                    // Hide the Tidings page (won't be shown if folded right after)
+                    sender.input(Msg::HideTidingsPage);
+                }
+            },
         }
     }
 }

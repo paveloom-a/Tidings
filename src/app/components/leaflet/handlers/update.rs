@@ -1,73 +1,57 @@
 //! Update message handler
 
-use relm4::{MessageHandler, Sender};
-use tokio::runtime::{Builder, Runtime};
-use tokio::sync::mpsc::{channel, Sender as TokioSender};
+use relm4::{ComponentSender, MessageBroker, Worker};
 
 use crate::app::components::leaflet::feeds::{self, tree::IndicesUrls};
-use crate::app::components::leaflet::tidings::dictionary::Tiding;
+use crate::app::components::leaflet::tidings::{self, dictionary::Tiding};
 
-/// Async Handler
-pub(in super::super) struct AsyncHandler {
-    /// Runtime
-    _rt: Runtime,
-    /// Sender
-    sender: TokioSender<Msg>,
-}
+/// Message broker
+pub static BROKER: MessageBroker<Model> = MessageBroker::new();
+
+/// Model
+pub struct Model;
 
 /// Messages
 #[derive(Debug)]
-pub(in super::super) enum Msg {
+pub enum Msg {
     /// Update all feeds
     UpdateAll(IndicesUrls),
 }
 
-impl MessageHandler<super::Model> for AsyncHandler {
-    type Msg = Msg;
-    type Sender = TokioSender<Msg>;
-    fn init(_parent_model: &super::Model, parent_sender: Sender<super::Msg>) -> Self {
-        // Create a channel between this component and any calling one
-        let (sender, mut rx) = channel::<Msg>(100);
-        // Initialize a Tokio Runtime
-        #[allow(clippy::unwrap_used)]
-        let rt = Builder::new_multi_thread().enable_time().build().unwrap();
-        // Spawn a future onto the runtime that handles messages asynchronously
-        rt.spawn(async move {
-            while let Some(msg) = rx.recv().await {
-                let parent_sender = parent_sender.clone();
-                tokio::spawn(async move {
-                    match msg {
-                        Msg::UpdateAll(indices_urls) => {
+impl Worker for Model {
+    type Init = ();
+    type Input = Msg;
+    type Output = super::Msg;
+    fn init(_init: Self::Init, _sender: ComponentSender<Self>) -> Self {
+        Self
+    }
+    fn update(&mut self, msg: Msg, sender: ComponentSender<Self>) {
+        match msg {
+            Msg::UpdateAll(indices_urls) => {
+                // Add a new command future to be executed in the background
+                sender.command(|_out, shutdown| {
+                    // Cancel the future if the component is shut down in the meantime
+                    shutdown
+                        .register(async move {
                             // For each pair
                             for (index, _url) in indices_urls {
-                                // Notify Feeds that this particular
-                                // feed is in the process of being updated
-                                let msg =
-                                    super::Msg::TransferToFeeds(feeds::Msg::UpdateStarted(index));
-                                parent_sender.send(msg).ok();
+                                // Add the updating status to the feed
+                                feeds::BROKER.send(feeds::Msg::UpdateStarted(index));
                                 // Imitate some work
                                 tokio::time::sleep(std::time::Duration::from_secs(1)).await;
                                 // Prepare some fake results
                                 let tidings = vec![Tiding {
                                     title: index.into_raw_parts().0.to_string(),
                                 }];
-                                // Notify Feeds and Tidings that the process of
-                                // updating of this particular feed has finished
-                                parent_sender
-                                    .send(super::Msg::UpdateFinished(index, tidings))
-                                    .ok();
+                                // Remove the updating status of the feed
+                                feeds::BROKER.send(feeds::Msg::UpdateFinished(index));
+                                // Send the tidings to Tidings
+                                tidings::BROKER.send(tidings::Msg::UpdateFinished(index, tidings));
                             }
-                        }
-                    }
+                        })
+                        .drop_on_shutdown()
                 });
             }
-        });
-        AsyncHandler { _rt: rt, sender }
-    }
-    fn send(&self, msg: Self::Msg) {
-        self.sender.blocking_send(msg).ok();
-    }
-    fn sender(&self) -> Self::Sender {
-        self.sender.clone()
+        }
     }
 }

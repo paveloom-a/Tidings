@@ -9,6 +9,7 @@ use wyhash::WyHash;
 pub type Tidings = Vec<Tiding>;
 
 /// Tiding
+#[derive(Debug)]
 pub struct Tiding {
     /// Title
     pub title: String,

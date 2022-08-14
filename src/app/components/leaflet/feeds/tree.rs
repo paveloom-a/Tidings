@@ -8,6 +8,7 @@ use super::Item;
 pub(in crate::app::components::leaflet) type IndicesUrls = Vec<(Index, Box<str>)>;
 
 /// Node in the tree of feeds
+#[derive(Debug)]
 pub enum Node {
     /// Feed
     Feed {

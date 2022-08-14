@@ -24,7 +24,7 @@ export RUSTUP_HOME="${CARGO_TARGET_DIR}"/rustup-home
 export PATH="${CARGO_HOME}/bin":$PATH
 
 # Install `rustup` if it's not installed
-if ! which rustup &>/dev/null; then
+if ! command -v rustup; then
     echo -e "\e[1minfo\e[0m: downloading installer"
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs |
         sh -s -- -y --default-toolchain none --no-modify-path &>/dev/null

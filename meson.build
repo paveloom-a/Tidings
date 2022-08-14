@@ -25,7 +25,7 @@ base_id = 'paveloom.apps.' + app_name
 dependency('glib-2.0', version: '= 2.72.3')
 dependency('gio-2.0', version: '= 2.72.3')
 dependency('gtk4', version: '= 4.6.6')
-dependency('libadwaita-1', version: '= 1.1.3')
+dependency('libadwaita-1', version: '= 1.1.4')
 
 build_script = find_program(meson.project_source_root() / 'scripts' / 'build.bash')
 sources_script =find_program(meson.project_source_root() / 'scripts' / 'sources.bash')

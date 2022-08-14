@@ -20,12 +20,12 @@ panic = 'abort'
 strip = true
 
 [dependencies]
-adw = { version = "=0.1.1", package = "libadwaita" }
+adw = { git = "https://gitlab.gnome.org/World/Rust/libadwaita-rs", package = "libadwaita" }
 generational-arena = "=0.2.8"
 gettext-rs = { version = "=0.7.0", features = ["gettext-system"] }
-gtk = {package = "gtk4", version = "=0.4.8", features = ["v4_6"]}
+gtk = { git = "https://github.com/gtk-rs/gtk4-rs", package = "gtk4", features = ["v4_6"]}
 log = "=0.4.17"
 once_cell = "=1.13.0"
-relm4 = { version = "=0.4.4", features = ["libadwaita", "macros"] }
+relm4 = { git = "https://github.com/Relm4/Relm4", features = ["libadwaita", "macros"] }
 tokio = { version = "=1.20.1", features = ["rt-multi-thread", "sync", "time"] }
 wyhash = "=0.5.0"

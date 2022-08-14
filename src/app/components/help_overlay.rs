@@ -1,9 +1,12 @@
 //! Help Overlay
 
 use gtk::prelude::{GtkWindowExt, WidgetExt};
-use relm4::{ComponentUpdate, Sender};
+use relm4::{ComponentParts, ComponentSender, MessageBroker, SimpleComponent};
 
-use super::{AppModel, AppMsg};
+use super::AppMsg;
+
+/// Message broker
+pub static BROKER: MessageBroker<Model> = MessageBroker::new();
 
 /// Model
 pub struct Model {
@@ -12,35 +15,12 @@ pub struct Model {
 }
 
 /// Messages
+#[derive(Debug)]
 pub enum Msg {
     /// Show the window
     Show,
     /// Hide the window
     Hide,
-}
-
-impl relm4::Model for Model {
-    type Msg = Msg;
-    type Widgets = Widgets;
-    type Components = ();
-}
-
-impl ComponentUpdate<AppModel> for Model {
-    fn init_model(_parent_model: &AppModel) -> Self {
-        Self { visible: false }
-    }
-    fn update(
-        &mut self,
-        msg: Msg,
-        _components: &(),
-        _sender: Sender<Msg>,
-        _parent_sender: Sender<AppMsg>,
-    ) {
-        match msg {
-            Msg::Show => self.visible = true,
-            Msg::Hide => self.visible = false,
-        }
-    }
 }
 
 /// Get a `ShortcutsWindow`
@@ -51,15 +31,37 @@ fn shortcuts_window() -> gtk::ShortcutsWindow {
         .expect("Couldn't build the Help Overlay")
 }
 
+#[allow(clippy::clone_on_ref_ptr)]
 #[allow(clippy::missing_docs_in_private_items)]
-#[relm4::widget(pub)]
-impl relm4::Widgets<Model, AppModel> for Widgets {
+#[allow(unused_variables)]
+#[relm4::component(pub)]
+impl SimpleComponent for Model {
+    type Init = ();
+    type Input = Msg;
+    type Output = AppMsg;
+    type Widgets = Widgets;
+    fn init(
+        _init: Self::Init,
+        root: &Self::Root,
+        sender: ComponentSender<Self>,
+    ) -> ComponentParts<Self> {
+        // Initialize the model
+        let model = Self { visible: false };
+        let widgets = view_output!();
+        ComponentParts { model, widgets }
+    }
+    fn update(&mut self, msg: Self::Input, _sender: ComponentSender<Self>) {
+        match msg {
+            Msg::Show => self.visible = true,
+            Msg::Hide => self.visible = false,
+        }
+    }
     view! {
         shortcuts_window() -> gtk::ShortcutsWindow {
-            set_transient_for: parent!(Some(&parent_widgets.app_window)),
-            set_visible: watch!(model.visible),
-            connect_close_request(sender) => move |_| {
-                sender.send(Msg::Hide).ok();
+            #[watch]
+            set_visible: model.visible,
+            connect_close_request[sender] => move |_| {
+                sender.input(Msg::Hide);
                 gtk::Inhibit(false)
             }
         }

@@ -3,9 +3,10 @@ runtime: org.gnome.Platform
 runtime-version: "42"
 sdk: org.gnome.Sdk
 sdk-extensions:
+  - org.freedesktop.Sdk.Extension.llvm14
   - org.freedesktop.Sdk.Extension.rust-stable
 build-options:
-  append-path: /usr/lib/sdk/rust-stable/bin
+  append-path: /usr/lib/sdk/llvm14/bin
   build-args:
     - --share=network
   test-args:

@@ -1,5 +1,5 @@
 //! Message handlers
 
-use super::{Model, Msg};
+use super::Msg;
 
 pub(super) mod update;

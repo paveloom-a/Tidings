@@ -5,7 +5,7 @@ pub mod tree;
 
 use generational_arena::Index;
 use gtk::prelude::{BoxExt, ButtonExt, Cast, ListModelExt, OrientableExt, WidgetExt};
-use relm4::{ComponentUpdate, Sender, WidgetPlus};
+use relm4::{ComponentParts, ComponentSender, MessageBroker, SimpleComponent, WidgetPlus};
 
 use super::tidings;
 use crate::app::actions::{
@@ -13,6 +13,9 @@ use crate::app::actions::{
 };
 use list::{Item, List, ListItemExt};
 use tree::{Node, Tree};
+
+/// Message broker
+pub static BROKER: MessageBroker<Model> = MessageBroker::new();
 
 /// Model
 pub struct Model {
@@ -43,6 +46,7 @@ impl Model {
 }
 
 /// Messages
+#[derive(Debug)]
 pub enum Msg {
     /// Go one level up in the tree of feeds
     Back,
@@ -64,89 +68,6 @@ pub enum Msg {
     /// Show the tidings of this specific
     /// feed in the Tidings component
     ShowTidings(Index),
-}
-
-impl relm4::Model for Model {
-    type Msg = Msg;
-    type Widgets = Widgets;
-    type Components = ();
-}
-
-impl ComponentUpdate<super::Model> for Model {
-    fn init_model(_parent_model: &super::Model) -> Self {
-        // Initialize a tree
-        let tree = Tree::default();
-        // Initialize a list
-        let mut list = List::new();
-        // Update the list
-        list.update(&tree);
-        // Return the model
-        Self {
-            tree,
-            list,
-            back_button_sensitive: false,
-            end_buttons_visible: false,
-        }
-    }
-    fn update(
-        &mut self,
-        msg: Msg,
-        _components: &(),
-        _sender: Sender<Msg>,
-        parent_sender: Sender<super::Msg>,
-    ) {
-        match msg {
-            Msg::Back => {
-                // Go back in the tree
-                self.tree.back();
-                // Update the list
-                self.list.update(&self.tree);
-                // If on the top level
-                if self.tree.is_root() {
-                    // Make the back button insensitive
-                    self.back_button_sensitive = false;
-                }
-            }
-            Msg::EnterDirectory(position) => {
-                // Enter the directory
-                self.tree.enter_dir(position);
-                // Update the list
-                self.list.update(&self.tree);
-                // Make the back button sensitive
-                self.back_button_sensitive = true;
-            }
-            Msg::ShowEndButtons => {
-                self.end_buttons_visible = true;
-            }
-            Msg::HideEndButtons => {
-                self.end_buttons_visible = false;
-            }
-            Msg::Add(node) => {
-                // Insert the node into the model
-                self.insert(node);
-            }
-            Msg::UpdateAll => {
-                // Get a vector of (index, URL) pairs of the feeds
-                let indices_urls = self.tree.indices_urls();
-                // Send them to the update message handler
-                parent_sender.send(super::Msg::UpdateAll(indices_urls)).ok();
-            }
-            Msg::UpdateStarted(index) => {
-                // Add the updating status of the feed
-                self.tree.set_updating(index, true);
-            }
-            Msg::UpdateFinished(index) => {
-                // Remove the updating status of the feed
-                self.tree.set_updating(index, false);
-            }
-            Msg::ShowTidings(index) => {
-                // Inform Tidings about which index to show
-                parent_sender
-                    .send(super::Msg::TransferToTidings(tidings::Msg::Show(index)))
-                    .ok();
-            }
-        }
-    }
 }
 
 /// Get a `ListView` from the model
@@ -189,7 +110,11 @@ fn list_view(model: &Model) -> gtk::ListView {
 }
 
 /// Connect the activate event of the List View
-fn list_view_connect_activate(sender: &Sender<Msg>, list_view: &gtk::ListView, position: u32) {
+fn list_view_connect_activate(
+    sender: &ComponentSender<Model>,
+    list_view: &gtk::ListView,
+    position: u32,
+) {
     // Get the model
     if let Some(list_model) = list_view.model() {
         // Get the GObject at the position
@@ -201,7 +126,7 @@ fn list_view_connect_activate(sender: &Sender<Msg>, list_view: &gtk::ListView, p
                     // If the position can be casted from `u32` to `usize`
                     if let Ok(position) = position.try_into() {
                         // Enter the directory
-                        sender.send(Msg::EnterDirectory(position)).ok();
+                        sender.input(Msg::EnterDirectory(position));
                     }
                 // Otherwise, it's a feed, so
                 } else {
@@ -209,7 +134,7 @@ fn list_view_connect_activate(sender: &Sender<Msg>, list_view: &gtk::ListView, p
                     if let Some(index) = item.index() {
                         // Show the tidings of this specific
                         // feed in the Tidings component
-                        sender.send(Msg::ShowTidings(index)).ok();
+                        sender.input(Msg::ShowTidings(index));
                     }
                 }
             }
@@ -217,9 +142,93 @@ fn list_view_connect_activate(sender: &Sender<Msg>, list_view: &gtk::ListView, p
     }
 }
 
+#[allow(clippy::clone_on_ref_ptr)]
 #[allow(clippy::missing_docs_in_private_items)]
-#[relm4::widget(pub)]
-impl relm4::Widgets<Model, super::Model> for Widgets {
+#[allow(unused_variables)]
+#[relm4::component(pub)]
+impl SimpleComponent for Model {
+    type Init = ();
+    type Input = Msg;
+    type Output = super::Msg;
+    type Widgets = Widgets;
+    fn init(
+        _init: Self::Init,
+        root: &Self::Root,
+        sender: ComponentSender<Self>,
+    ) -> ComponentParts<Self> {
+        // Initialize a tree
+        let tree = Tree::default();
+        // Initialize a list
+        let mut list = List::new();
+        // Update the list
+        list.update(&tree);
+        // Initialize the model
+        let model = Self {
+            tree,
+            list,
+            back_button_sensitive: false,
+            end_buttons_visible: false,
+        };
+        let widgets = view_output!();
+        ComponentParts { model, widgets }
+    }
+    fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
+        match msg {
+            Msg::Back => {
+                // Go back in the tree
+                self.tree.back();
+                // Update the list
+                self.list.update(&self.tree);
+                // If on the top level
+                if self.tree.is_root() {
+                    // Make the back button insensitive
+                    self.back_button_sensitive = false;
+                }
+            }
+            Msg::EnterDirectory(position) => {
+                // Enter the directory
+                self.tree.enter_dir(position);
+                // Update the list
+                self.list.update(&self.tree);
+                // Make the back button sensitive
+                self.back_button_sensitive = true;
+            }
+            Msg::ShowEndButtons => {
+                self.end_buttons_visible = true;
+            }
+            Msg::HideEndButtons => {
+                self.end_buttons_visible = false;
+            }
+            Msg::Add(node) => {
+                // Insert the node into the model
+                self.insert(node);
+            }
+            Msg::UpdateAll => {
+                // Get a vector of (index, URL) pairs of the feeds
+                let indices_urls = self.tree.indices_urls();
+                // Send them to the update message handler
+                sender.output(super::Msg::UpdateAll(indices_urls));
+            }
+            Msg::UpdateStarted(index) => {
+                // Add the updating status of the feed
+                self.tree.set_updating(index, true);
+            }
+            Msg::UpdateFinished(index) => {
+                // Remove the updating status of the feed
+                self.tree.set_updating(index, false);
+            }
+            Msg::ShowTidings(index) => {
+                // Inform Tidings about which index to show
+                sender.output(super::Msg::TransferToTidings(tidings::Msg::Show(index)));
+            }
+        }
+    }
+    fn pre_view() {
+        // This is a trick to make the Scrolled Window recalculate
+        // the vertical adjustment. This doesn't happen by default
+        // after clearing the list
+        scrolled_window.set_vadjustment(Option::<&gtk::Adjustment>::None);
+    }
     view! {
         // Box
         gtk::Box {
@@ -228,23 +237,23 @@ impl relm4::Widgets<Model, super::Model> for Widgets {
             set_hexpand: true,
             // Header Bar
             append = &adw::HeaderBar {
-                set_show_start_title_buttons: watch!(
-                    model.end_buttons_visible
-                ),
-                set_show_end_title_buttons: watch!(
-                    model.end_buttons_visible
-                ),
+                #[watch]
+                set_show_start_title_buttons: model.end_buttons_visible,
+                #[watch]
+                set_show_end_title_buttons: model.end_buttons_visible ,
                 // Title
-                set_title_widget = Some(&adw::WindowTitle) {
+                #[wrap(Some)]
+                set_title_widget = &adw::WindowTitle {
                     set_title: "Feeds"
                 },
                 // Go Back Button
                 pack_start = &gtk::Button {
-                    set_sensitive: watch!(model.back_button_sensitive),
+                    #[watch]
+                    set_sensitive: model.back_button_sensitive,
                     set_icon_name: "go-previous-symbolic",
                     set_tooltip_text: Some("Go Back"),
-                    connect_clicked(sender) => move |_| {
-                        sender.send(Msg::Back).ok();
+                    connect_clicked[sender] => move |_| {
+                        sender.input(Msg::Back);
                     },
                 },
                 // Add Split Button
@@ -256,13 +265,14 @@ impl relm4::Widgets<Model, super::Model> for Widgets {
                 pack_start = &gtk::Button {
                     set_icon_name: "emblem-synchronizing-symbolic",
                     set_tooltip_text: Some("Update All Feeds"),
-                    connect_clicked(sender) => move |_| {
-                        sender.send(Msg::UpdateAll).ok();
+                    connect_clicked[sender] => move |_| {
+                        sender.input(Msg::UpdateAll);
                     }
                 },
                 // Menu Button
                 pack_end = &gtk::MenuButton {
-                    set_visible: watch!(model.end_buttons_visible),
+                    #[watch]
+                    set_visible: model.end_buttons_visible,
                     set_icon_name: "open-menu-symbolic",
                     set_menu_model: Some(&main_menu),
                 },
@@ -273,10 +283,11 @@ impl relm4::Widgets<Model, super::Model> for Widgets {
                 set_hexpand: true,
                 set_vexpand: true,
                 // List View
-                set_child = Some(&list_view(model) -> gtk::ListView) {
+                #[wrap(Some)]
+                set_child = &list_view(&model) -> gtk::ListView {
                     set_margin_all: 4,
                     set_single_click_activate: true,
-                    connect_activate(sender) => move |list_view, position| {
+                    connect_activate[sender] => move |list_view, position| {
                         list_view_connect_activate(
                             &sender,
                             list_view,
@@ -286,12 +297,6 @@ impl relm4::Widgets<Model, super::Model> for Widgets {
                 }
             }
         }
-    }
-    fn pre_view() {
-        // This is a trick to make the Scrolled Window recalculate
-        // the vertical adjustment. This doesn't happen by default
-        // after clearing the list
-        scrolled_window.set_vadjustment(Option::<&gtk::Adjustment>::None);
     }
     menu! {
         main_menu: {
