@@ -12,7 +12,6 @@ use relm4::{
 use std::convert::identity;
 
 use super::AppMsg;
-use feeds::tree::IndicesUrls;
 
 /// Message broker
 pub static BROKER: MessageBroker<Model> = MessageBroker::new();
@@ -28,6 +27,7 @@ pub struct Model {
     /// Tidings
     tidings: Controller<tidings::Model>,
     /// Update message handler
+    #[allow(dead_code)]
     update: Controller<handlers::update::Model>,
 }
 
@@ -36,12 +36,6 @@ pub struct Model {
 pub enum Msg {
     /// Set the folding state
     SetFolded(bool),
-    /// Transfer a message to the Feeds component
-    TransferToFeeds(feeds::Msg),
-    /// Transfer a message to the Tidings component
-    TransferToTidings(tidings::Msg),
-    /// Start the update of all feeds
-    UpdateAll(IndicesUrls),
     /// Show the Tidings page
     ShowTidingsPage,
     /// Hide the Tidings page
@@ -99,18 +93,6 @@ impl SimpleComponent for Model {
         match msg {
             Msg::SetFolded(folded) => {
                 self.folded = folded;
-            }
-            Msg::TransferToFeeds(message) => {
-                self.feeds.sender().send(message);
-            }
-            Msg::TransferToTidings(message) => {
-                self.tidings.sender().send(message);
-            }
-            Msg::UpdateAll(indices_urls) => {
-                // Transfer these to the update message handler
-                self.update
-                    .sender()
-                    .send(handlers::update::Msg::UpdateAll(indices_urls));
             }
             Msg::ShowTidingsPage => {
                 // This is done here and not in the message above

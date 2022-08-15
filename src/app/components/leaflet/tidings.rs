@@ -48,8 +48,8 @@ impl Model {
 /// Messages
 #[derive(Debug)]
 pub enum Msg {
-    /// Update of the particular feed finished
-    UpdateFinished(Index, Tidings),
+    /// Insert the tidings at the specified index
+    Insert(Index, Tidings),
     /// Show the tidings of the particular feed
     Show(Index),
     /// Set the folded state
@@ -140,7 +140,7 @@ impl SimpleComponent for Model {
     }
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>) {
         match msg {
-            Msg::UpdateFinished(index, tidings) => {
+            Msg::Insert(index, tidings) => {
                 // Insert the tidings into the dictionary
                 // using the index as a key
                 self.dictionary.insert(index, tidings);

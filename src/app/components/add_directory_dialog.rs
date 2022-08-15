@@ -74,10 +74,8 @@ impl SimpleComponent for Model {
                 let title = self.title.text();
                 // Prepare a node
                 let node = feeds::tree::Node::new_directory(title);
-                // Prepare a message for the Feeds component
-                let msg = feeds::Msg::Add(node);
-                // Send the message
-                sender.output(AppMsg::TransferToFeeds(msg));
+                // Add the node
+                feeds::BROKER.send(feeds::Msg::Add(node));
                 // Hide the dialog
                 sender.input(Msg::Hide);
             }

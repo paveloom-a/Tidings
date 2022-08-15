@@ -265,7 +265,7 @@ dependencies = [
 [[package]]
 name = "gdk4"
 version = "0.5.0"
-source = "git+https://github.com/gtk-rs/gtk4-rs#e8528ffba518e7c75fabea6c8926908fb6cb58be"
+source = "git+https://github.com/gtk-rs/gtk4-rs#9bda40889a2869d038c6b110ffd695df645fa601"
 dependencies = [
  "bitflags",
  "cairo-rs",
@@ -280,7 +280,7 @@ dependencies = [
 [[package]]
 name = "gdk4-sys"
 version = "0.5.0"
-source = "git+https://github.com/gtk-rs/gtk4-rs#e8528ffba518e7c75fabea6c8926908fb6cb58be"
+source = "git+https://github.com/gtk-rs/gtk4-rs#9bda40889a2869d038c6b110ffd695df645fa601"
 dependencies = [
  "cairo-sys-rs",
  "gdk-pixbuf-sys",
@@ -441,7 +441,7 @@ dependencies = [
 [[package]]
 name = "gsk4"
 version = "0.5.0"
-source = "git+https://github.com/gtk-rs/gtk4-rs#e8528ffba518e7c75fabea6c8926908fb6cb58be"
+source = "git+https://github.com/gtk-rs/gtk4-rs#9bda40889a2869d038c6b110ffd695df645fa601"
 dependencies = [
  "bitflags",
  "cairo-rs",
@@ -456,7 +456,7 @@ dependencies = [
 [[package]]
 name = "gsk4-sys"
 version = "0.5.0"
-source = "git+https://github.com/gtk-rs/gtk4-rs#e8528ffba518e7c75fabea6c8926908fb6cb58be"
+source = "git+https://github.com/gtk-rs/gtk4-rs#9bda40889a2869d038c6b110ffd695df645fa601"
 dependencies = [
  "cairo-sys-rs",
  "gdk4-sys",
@@ -471,7 +471,7 @@ dependencies = [
 [[package]]
 name = "gtk4"
 version = "0.5.0"
-source = "git+https://github.com/gtk-rs/gtk4-rs#e8528ffba518e7c75fabea6c8926908fb6cb58be"
+source = "git+https://github.com/gtk-rs/gtk4-rs#9bda40889a2869d038c6b110ffd695df645fa601"
 dependencies = [
  "bitflags",
  "cairo-rs",
@@ -493,7 +493,7 @@ dependencies = [
 [[package]]
 name = "gtk4-macros"
 version = "0.5.0"
-source = "git+https://github.com/gtk-rs/gtk4-rs#e8528ffba518e7c75fabea6c8926908fb6cb58be"
+source = "git+https://github.com/gtk-rs/gtk4-rs#9bda40889a2869d038c6b110ffd695df645fa601"
 dependencies = [
  "anyhow",
  "proc-macro-crate",
@@ -506,7 +506,7 @@ dependencies = [
 [[package]]
 name = "gtk4-sys"
 version = "0.5.0"
-source = "git+https://github.com/gtk-rs/gtk4-rs#e8528ffba518e7c75fabea6c8926908fb6cb58be"
+source = "git+https://github.com/gtk-rs/gtk4-rs#9bda40889a2869d038c6b110ffd695df645fa601"
 dependencies = [
  "cairo-sys-rs",
  "gdk-pixbuf-sys",
@@ -757,18 +757,18 @@ dependencies = [
 
 [[package]]
 name = "pin-project"
-version = "1.0.11"
+version = "1.0.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "78203e83c48cffbe01e4a2d35d566ca4de445d79a85372fc64e378bfc812a260"
+checksum = "ad29a609b6bcd67fee905812e544992d216af9d755757c05ed2d0e15a74c6ecc"
 dependencies = [
  "pin-project-internal",
 ]
 
 [[package]]
 name = "pin-project-internal"
-version = "1.0.11"
+version = "1.0.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "710faf75e1b33345361201d36d04e98ac1ed8909151a017ed384700836104c74"
+checksum = "069bdb1e05adc7a8990dce9cc75370895fbe4e3d58b9b73bf1aee56359344a55"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -881,7 +881,7 @@ checksum = "a3f87b73ce11b1619a3c6332f45341e0047173771e8b8b73f87bfeefb7b56244"
 [[package]]
 name = "relm4"
 version = "0.5.0-beta.2"
-source = "git+https://github.com/Relm4/Relm4#2e1061ea37ab09ac0708fa4bdf12ba15a11d69f4"
+source = "git+https://github.com/Relm4/Relm4#3d4f25dca9ef4a3f1cb00b118e9bf60ef48aeee5"
 dependencies = [
  "async-broadcast",
  "async-oneshot",
@@ -899,7 +899,7 @@ dependencies = [
 [[package]]
 name = "relm4-macros"
 version = "0.5.0-beta.2"
-source = "git+https://github.com/Relm4/Relm4#2e1061ea37ab09ac0708fa4bdf12ba15a11d69f4"
+source = "git+https://github.com/Relm4/Relm4#3d4f25dca9ef4a3f1cb00b118e9bf60ef48aeee5"
 dependencies = [
  "proc-macro2",
  "quote",

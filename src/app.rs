@@ -81,8 +81,6 @@ pub enum Msg {
     Save(Settings),
     /// Quit the application
     Quit,
-    /// Transfer a message to the Feeds component
-    TransferToFeeds(leaflet::feeds::Msg),
 }
 
 #[allow(clippy::clone_on_ref_ptr)]
@@ -151,9 +149,6 @@ impl SimpleComponent for Model {
             Msg::Quit => {
                 // Quit the application
                 self.running = false;
-            }
-            Msg::TransferToFeeds(message) => {
-                leaflet::BROKER.send(leaflet::Msg::TransferToFeeds(message));
             }
         }
     }

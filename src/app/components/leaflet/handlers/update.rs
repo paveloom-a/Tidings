@@ -46,7 +46,7 @@ impl Worker for Model {
                                 // Remove the updating status of the feed
                                 feeds::BROKER.send(feeds::Msg::UpdateFinished(index));
                                 // Send the tidings to Tidings
-                                tidings::BROKER.send(tidings::Msg::UpdateFinished(index, tidings));
+                                tidings::BROKER.send(tidings::Msg::Insert(index, tidings));
                             }
                         })
                         .drop_on_shutdown()

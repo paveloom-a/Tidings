@@ -65,9 +65,6 @@ pub enum Msg {
     UpdateStarted(Index),
     /// Update of the particular feed finished
     UpdateFinished(Index),
-    /// Show the tidings of this specific
-    /// feed in the Tidings component
-    ShowTidings(Index),
 }
 
 /// Get a `ListView` from the model
@@ -134,7 +131,7 @@ fn list_view_connect_activate(
                     if let Some(index) = item.index() {
                         // Show the tidings of this specific
                         // feed in the Tidings component
-                        sender.input(Msg::ShowTidings(index));
+                        tidings::BROKER.send(tidings::Msg::Show(index));
                     }
                 }
             }
@@ -207,7 +204,8 @@ impl SimpleComponent for Model {
                 // Get a vector of (index, URL) pairs of the feeds
                 let indices_urls = self.tree.indices_urls();
                 // Send them to the update message handler
-                sender.output(super::Msg::UpdateAll(indices_urls));
+                super::handlers::update::BROKER
+                    .send(super::handlers::update::Msg::UpdateAll(indices_urls));
             }
             Msg::UpdateStarted(index) => {
                 // Add the updating status of the feed
@@ -216,10 +214,6 @@ impl SimpleComponent for Model {
             Msg::UpdateFinished(index) => {
                 // Remove the updating status of the feed
                 self.tree.set_updating(index, false);
-            }
-            Msg::ShowTidings(index) => {
-                // Inform Tidings about which index to show
-                sender.output(super::Msg::TransferToTidings(tidings::Msg::Show(index)));
             }
         }
     }
