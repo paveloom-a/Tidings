@@ -2,10 +2,13 @@
 
 mod list;
 pub mod tree;
+pub mod update;
 
 use generational_arena::Index;
 use gtk::prelude::{BoxExt, ButtonExt, Cast, ListModelExt, OrientableExt, WidgetExt};
-use relm4::{ComponentParts, ComponentSender, MessageBroker, SimpleComponent, WidgetPlus};
+use relm4::{
+    ComponentParts, ComponentSender, MessageBroker, SimpleComponent, WidgetPlus, WorkerController,
+};
 
 use super::tidings;
 use crate::app::actions::{
@@ -27,6 +30,8 @@ pub struct Model {
     back_button_sensitive: bool,
     /// Are the end buttons visible in the header bar?
     end_buttons_visible: bool,
+    /// Update message handler
+    update: WorkerController<update::Model>,
 }
 
 impl Model {
@@ -165,6 +170,7 @@ impl SimpleComponent for Model {
             list,
             back_button_sensitive: false,
             end_buttons_visible: false,
+            update: update::new(&sender),
         };
         let widgets = view_output!();
         ComponentParts { model, widgets }
@@ -203,9 +209,11 @@ impl SimpleComponent for Model {
             Msg::UpdateAll => {
                 // Get a vector of (index, URL) pairs of the feeds
                 let indices_urls = self.tree.indices_urls();
+                // Replace the update message handler
+                // (thus, cancelling any ongoing update)
+                self.update = update::new(&sender);
                 // Send them to the update message handler
-                super::handlers::update::BROKER
-                    .send(super::handlers::update::Msg::UpdateAll(indices_urls));
+                self.update.emit(update::Msg::UpdateAll(indices_urls));
             }
             Msg::UpdateStarted(index) => {
                 // Add the updating status of the feed

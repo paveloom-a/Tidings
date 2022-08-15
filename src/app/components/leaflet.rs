@@ -1,7 +1,6 @@
 //! Leaflet
 
 pub mod feeds;
-mod handlers;
 pub mod tidings;
 
 use relm4::{
@@ -26,9 +25,6 @@ pub struct Model {
     feeds: Controller<feeds::Model>,
     /// Tidings
     tidings: Controller<tidings::Model>,
-    /// Update message handler
-    #[allow(dead_code)]
-    update: Controller<handlers::update::Model>,
 }
 
 /// Messages
@@ -61,9 +57,6 @@ impl SimpleComponent for Model {
         let tidings = tidings::Model::builder()
             .launch_with_broker((), &tidings::BROKER)
             .forward(sender.input_sender(), identity);
-        let update = handlers::update::Model::builder()
-            .launch_with_broker((), &handlers::update::BROKER)
-            .forward(sender.input_sender(), identity);
         // Initialize the model
         let model = Self {
             // Whether it's folded is restored on restart
@@ -72,7 +65,6 @@ impl SimpleComponent for Model {
             show_tidings: false,
             feeds,
             tidings,
-            update,
         };
         let widgets = view_output!();
         // Attaching components manually just to make

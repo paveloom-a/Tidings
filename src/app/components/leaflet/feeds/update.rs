@@ -1,15 +1,22 @@
 //! Update message handler
 
-use relm4::{ComponentSender, MessageBroker, Worker};
+use relm4::{Component, ComponentSender, Worker, WorkerController};
+
+use std::convert::identity;
 
 use crate::app::components::leaflet::feeds::{self, tree::IndicesUrls};
 use crate::app::components::leaflet::tidings::{self, dictionary::Tiding};
 
-/// Message broker
-pub static BROKER: MessageBroker<Model> = MessageBroker::new();
-
 /// Model
 pub struct Model;
+
+/// Initialize a new worker (this is
+/// used to drop the previous worker)
+pub(super) fn new(sender: &ComponentSender<super::Model>) -> WorkerController<Model> {
+    Model::builder()
+        .detach_worker(())
+        .forward(&sender.input, identity)
+}
 
 /// Messages
 #[derive(Debug)]
