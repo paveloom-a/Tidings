@@ -1,5 +1,6 @@
 //! Update message handler
 
+use rayon::prelude::*;
 use relm4::{Component, ComponentSender, Worker, WorkerController};
 
 use std::convert::identity;
@@ -41,20 +42,20 @@ impl Worker for Model {
                     shutdown
                         .register(async move {
                             // For each pair
-                            for (index, _url) in indices_urls {
+                            indices_urls.into_par_iter().for_each(|(index, _url)| {
                                 // Add the updating status to the feed
                                 super::BROKER.send(super::Msg::UpdateStarted(index));
-                                // Imitate some work
-                                tokio::time::sleep(std::time::Duration::from_secs(1)).await;
                                 // Prepare some fake results
                                 let tidings = vec![Tiding {
                                     title: index.into_raw_parts().0.to_string(),
                                 }];
+                                // Imitate some work
+                                std::thread::sleep(std::time::Duration::from_secs(1));
                                 // Remove the updating status of the feed
                                 super::BROKER.send(super::Msg::UpdateFinished(index));
                                 // Send the tidings to Tidings
                                 tidings::BROKER.send(tidings::Msg::Insert(index, tidings));
-                            }
+                            });
                             // Notify Feeds that the whole update is finished
                             super::BROKER.send(super::Msg::StopUpdateAll);
                         })
