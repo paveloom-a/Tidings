@@ -39,7 +39,7 @@ pub(super) fn setup_actions(app_window: &adw::ApplicationWindow) {
     // Create the Update All Feeds action
     let update_all_feeds_action: RelmAction<UpdateAllFeeds> = RelmAction::new_stateless({
         move |_| {
-            leaflet::feeds::BROKER.send(leaflet::feeds::Msg::UpdateAll);
+            leaflet::feeds::BROKER.send(leaflet::feeds::Msg::ToggleUpdateAll);
         }
     });
     // Create the Show Help Overlay action

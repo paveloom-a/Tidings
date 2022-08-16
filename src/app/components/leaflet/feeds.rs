@@ -30,8 +30,10 @@ pub struct Model {
     back_button_sensitive: bool,
     /// Are the end buttons visible in the header bar?
     end_buttons_visible: bool,
+    /// Is the update running?
+    updating: bool,
     /// Update message handler
-    update: WorkerController<update::Model>,
+    update: Option<WorkerController<update::Model>>,
 }
 
 impl Model {
@@ -64,8 +66,12 @@ pub enum Msg {
     HideEndButtons,
     /// Add a node
     Add(Node),
-    /// Update all feeds
-    UpdateAll,
+    /// Start the update of all feeds
+    StartUpdateAll,
+    /// Stop the update of all feeds
+    StopUpdateAll,
+    /// Toggle the update of all feeds
+    ToggleUpdateAll,
     /// Update of the particular feed has started
     UpdateStarted(Index),
     /// Update of the particular feed finished
@@ -170,7 +176,8 @@ impl SimpleComponent for Model {
             list,
             back_button_sensitive: false,
             end_buttons_visible: false,
-            update: update::new(&sender),
+            updating: false,
+            update: None,
         };
         let widgets = view_output!();
         ComponentParts { model, widgets }
@@ -206,14 +213,31 @@ impl SimpleComponent for Model {
                 // Insert the node into the model
                 self.insert(node);
             }
-            Msg::UpdateAll => {
+            Msg::StartUpdateAll => {
+                // Create a new update message handler
+                let update = update::new(&sender);
                 // Get a vector of (index, URL) pairs of the feeds
                 let indices_urls = self.tree.indices_urls();
-                // Replace the update message handler
-                // (thus, cancelling any ongoing update)
-                self.update = update::new(&sender);
                 // Send them to the update message handler
-                self.update.emit(update::Msg::UpdateAll(indices_urls));
+                update.emit(update::Msg::UpdateAll(indices_urls));
+                // Notify the UI that the update has started
+                self.updating = true;
+                // Let the model own the message handler
+                self.update = Some(update);
+            }
+            Msg::StopUpdateAll => {
+                // Drop the message handler (thus,
+                // cancelling any ongoing update)
+                self.update = None;
+                // Notify the UI that the update has been canceled
+                self.updating = false;
+            }
+            Msg::ToggleUpdateAll => {
+                if self.updating {
+                    sender.input(Msg::StopUpdateAll);
+                } else {
+                    sender.input(Msg::StartUpdateAll);
+                }
             }
             Msg::UpdateStarted(index) => {
                 // Add the updating status of the feed
@@ -265,10 +289,20 @@ impl SimpleComponent for Model {
                     set_menu_model: Some(&add_menu),
                 },
                 pack_start = &gtk::Button {
-                    set_icon_name: "emblem-synchronizing-symbolic",
-                    set_tooltip_text: Some("Update All Feeds"),
+                    #[watch]
+                    set_icon_name: if model.updating {
+                        "big-x-symbolic"
+                    } else {
+                        "emblem-synchronizing-symbolic"
+                    },
+                    #[watch]
+                    set_tooltip_text: if model.updating {
+                        Some("Stop Update")
+                    } else {
+                        Some("Update All Feeds")
+                    },
                     connect_clicked[sender] => move |_| {
-                        sender.input(Msg::UpdateAll);
+                        sender.input(Msg::ToggleUpdateAll);
                     }
                 },
                 // Menu Button

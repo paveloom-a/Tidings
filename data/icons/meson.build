@@ -10,6 +10,16 @@ install_data(
 )
 
 install_data(
+  'big-x-symbolic.svg',
+  install_dir: iconsdir / 'hicolor' / 'symbolic' / 'apps',
+)
+
+install_data(
+  'emblem-synchronizing-symbolic.svg',
+  install_dir: iconsdir / 'hicolor' / 'symbolic' / 'apps',
+)
+
+install_data(
   'plus-large-symbolic.svg',
   install_dir: iconsdir / 'hicolor' / 'symbolic' / 'apps',
 )
