@@ -32,8 +32,12 @@ pub struct Model {
     end_buttons_visible: bool,
     /// Is the update running?
     updating: bool,
+    /// Number of requests handled (including failed ones)
+    update_handled: f64,
+    /// Number of nodes requested for update
+    update_requested: f64,
     /// Update message handler
-    update: Option<WorkerController<update::Model>>,
+    update_worker: Option<WorkerController<update::Model>>,
 }
 
 impl Model {
@@ -150,7 +154,10 @@ fn list_view_connect_activate(
     }
 }
 
+#[allow(clippy::as_conversions)]
+#[allow(clippy::cast_precision_loss)]
 #[allow(clippy::clone_on_ref_ptr)]
+#[allow(clippy::default_numeric_fallback)]
 #[allow(clippy::missing_docs_in_private_items)]
 #[allow(unused_variables)]
 #[relm4::component(pub)]
@@ -177,7 +184,10 @@ impl SimpleComponent for Model {
             back_button_sensitive: false,
             end_buttons_visible: false,
             updating: false,
-            update: None,
+            // Avoiding the nasty division by zero here
+            update_handled: 0.,
+            update_requested: 1.,
+            update_worker: None,
         };
         let widgets = view_output!();
         ComponentParts { model, widgets }
@@ -214,21 +224,27 @@ impl SimpleComponent for Model {
                 self.insert(node);
             }
             Msg::StartUpdateAll => {
-                // Create a new update message handler
-                let update = update::new(&sender);
                 // Get a vector of (index, URL) pairs of the feeds
                 let indices_urls = self.tree.indices_urls();
-                // Send them to the update message handler
-                update.emit(update::Msg::UpdateAll(indices_urls));
-                // Notify the UI that the update has started
-                self.updating = true;
-                // Let the model own the message handler
-                self.update = Some(update);
+                // If there is something to update, proceed
+                if !indices_urls.is_empty() {
+                    // Create a new update message handler
+                    let update = update::new(&sender);
+                    // Setup the progress bar
+                    self.update_requested = indices_urls.len() as f64;
+                    self.update_handled = 0.;
+                    // Send the data to the update message handler
+                    update.emit(update::Msg::UpdateAll(indices_urls));
+                    // Notify the UI that the update has started
+                    self.updating = true;
+                    // Let the model own the message handler
+                    self.update_worker = Some(update);
+                }
             }
             Msg::StopUpdateAll => {
                 // Drop the message handler (thus,
                 // cancelling any ongoing update)
-                self.update = None;
+                self.update_worker = None;
                 // Notify the UI that the update has been canceled
                 self.updating = false;
             }
@@ -244,6 +260,8 @@ impl SimpleComponent for Model {
                 self.tree.set_updating(index, true);
             }
             Msg::UpdateFinished(index) => {
+                // Increment the amount of handled requests
+                self.update_handled += 1.;
                 // Remove the updating status of the feed
                 self.tree.set_updating(index, false);
             }
@@ -261,57 +279,74 @@ impl SimpleComponent for Model {
             set_width_request: 365,
             set_orientation: gtk::Orientation::Vertical,
             set_hexpand: true,
-            // Header Bar
-            append = &adw::HeaderBar {
-                #[watch]
-                set_show_start_title_buttons: model.end_buttons_visible,
-                #[watch]
-                set_show_end_title_buttons: model.end_buttons_visible ,
-                // Title
+            // Header Overlay
+            append = &gtk::Overlay {
+                // Header Bar
                 #[wrap(Some)]
-                set_title_widget = &adw::WindowTitle {
-                    set_title: "Feeds"
-                },
-                // Go Back Button
-                pack_start = &gtk::Button {
+                set_child = &adw::HeaderBar {
                     #[watch]
-                    set_sensitive: model.back_button_sensitive,
-                    set_icon_name: "go-previous-symbolic",
-                    set_tooltip_text: Some("Go Back"),
-                    connect_clicked[sender] => move |_| {
-                        sender.input(Msg::Back);
+                    set_show_start_title_buttons: model.end_buttons_visible,
+                    #[watch]
+                    set_show_end_title_buttons: model.end_buttons_visible ,
+                    // Title
+                    #[wrap(Some)]
+                    set_title_widget = &adw::WindowTitle {
+                        set_title: "Feeds"
+                    },
+                    // Go Back Button
+                    pack_start = &gtk::Button {
+                        #[watch]
+                        set_sensitive: model.back_button_sensitive,
+                        set_icon_name: "go-previous-symbolic",
+                        set_tooltip_text: Some("Go Back"),
+                        connect_clicked[sender] => move |_| {
+                            sender.input(Msg::Back);
+                        },
+                    },
+                    // Add Split Button
+                    pack_start = &gtk::MenuButton {
+                        set_icon_name: "plus-large-symbolic",
+                        set_tooltip_text: Some("Add"),
+                        set_menu_model: Some(&add_menu),
+                    },
+                    pack_start = &gtk::Button {
+                        #[watch]
+                        set_icon_name: if model.updating {
+                            "big-x-symbolic"
+                        } else {
+                            "emblem-synchronizing-symbolic"
+                        },
+                        #[watch]
+                        set_tooltip_text: if model.updating {
+                            Some("Stop Update")
+                        } else {
+                            Some("Update All Feeds")
+                        },
+                        connect_clicked[sender] => move |_| {
+                            sender.input(Msg::ToggleUpdateAll);
+                        }
+                    },
+                    // Menu Button
+                    pack_end = &gtk::MenuButton {
+                        #[watch]
+                        set_visible: model.end_buttons_visible,
+                        set_icon_name: "open-menu-symbolic",
+                        set_menu_model: Some(&main_menu),
                     },
                 },
-                // Add Split Button
-                pack_start = &gtk::MenuButton {
-                    set_icon_name: "plus-large-symbolic",
-                    set_tooltip_text: Some("Add"),
-                    set_menu_model: Some(&add_menu),
-                },
-                pack_start = &gtk::Button {
+                // Update Progress Bar
+                add_overlay = &gtk::Revealer {
                     #[watch]
-                    set_icon_name: if model.updating {
-                        "big-x-symbolic"
-                    } else {
-                        "emblem-synchronizing-symbolic"
-                    },
-                    #[watch]
-                    set_tooltip_text: if model.updating {
-                        Some("Stop Update")
-                    } else {
-                        Some("Update All Feeds")
-                    },
-                    connect_clicked[sender] => move |_| {
-                        sender.input(Msg::ToggleUpdateAll);
+                    set_reveal_child: model.updating,
+                    set_transition_type: gtk::RevealerTransitionType::SlideUp,
+                    set_valign: gtk::Align::End,
+                    #[wrap(Some)]
+                    set_child = &gtk::ProgressBar {
+                        add_css_class: "osd",
+                        #[watch]
+                        set_fraction: model.update_handled / model.update_requested,
                     }
-                },
-                // Menu Button
-                pack_end = &gtk::MenuButton {
-                    #[watch]
-                    set_visible: model.end_buttons_visible,
-                    set_icon_name: "open-menu-symbolic",
-                    set_menu_model: Some(&main_menu),
-                },
+                }
             },
             // Scrolled Window
             append: scrolled_window = &gtk::ScrolledWindow {

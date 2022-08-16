@@ -12,6 +12,7 @@ rustflags = [
     "-Dnonstandard-style",
     "-Dunsafe_code",
     # Exceptions
+    "-Aclippy::float_arithmetic",
     "-Aclippy::implicit_return",
     "-Aclippy::integer_arithmetic",
     "-Aclippy::multiple_crate_versions",
