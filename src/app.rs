@@ -15,7 +15,7 @@ use std::convert::identity;
 
 use super::config::{APP_ID, PROFILE};
 use actions::{setup_accels, setup_actions};
-use components::{about_dialog, add_directory_dialog, add_feed_dialog, help_overlay, leaflet};
+use components::{about_dialog, add_directory_dialog, add_feed_dialog, content, help_overlay};
 
 /// Message broker
 pub static BROKER: MessageBroker<Model> = MessageBroker::new();
@@ -26,6 +26,8 @@ pub struct Model {
     settings: gio::Settings,
     /// Is the application running?
     running: bool,
+    /// Content
+    content: Controller<content::Model>,
     /// About Dialog
     #[allow(dead_code)]
     about_dialog: Controller<about_dialog::Model>,
@@ -38,8 +40,6 @@ pub struct Model {
     /// Add Directory Dialog
     #[allow(dead_code)]
     add_directory_dialog: Controller<add_directory_dialog::Model>,
-    /// Leaflet
-    leaflet: Controller<leaflet::Model>,
 }
 
 /// Settings
@@ -98,8 +98,8 @@ impl SimpleComponent for Model {
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         // Initialize the components
-        let leaflet = leaflet::Model::builder()
-            .launch_with_broker((), &leaflet::BROKER)
+        let content = content::Model::builder()
+            .launch_with_broker((), &content::BROKER)
             .forward(sender.input_sender(), identity);
         let about_dialog = about_dialog::Model::builder()
             .launch_with_broker((), &about_dialog::BROKER)
@@ -117,7 +117,7 @@ impl SimpleComponent for Model {
         let model = Self {
             settings: gio::Settings::new(APP_ID),
             running: true,
-            leaflet,
+            content,
             about_dialog,
             help_overlay,
             add_feed_dialog,
@@ -175,15 +175,15 @@ impl SimpleComponent for Model {
             },
             add_controller = &gtk::EventControllerKey {
                 connect_key_pressed[sender] => move |_, key, _, _| {
-                    // Esc: Return to the feeds
+                    // Esc: Navigate back through the content
                     if key == gdk::Key::Escape {
-                        leaflet::BROKER.send(leaflet::Msg::HideTidingsPage);
+                        content::BROKER.send(content::Msg::Back);
                     }
                     gtk::Inhibit(false)
                 }
             },
-            // Leaflet
-            set_content: Some(model.leaflet.widget())
+            // Content
+            set_content: Some(model.content.widget())
         }
     }
 }

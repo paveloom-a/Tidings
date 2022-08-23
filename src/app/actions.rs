@@ -3,7 +3,7 @@
 use gtk::prelude::{GtkApplicationExt, WidgetExt};
 
 use super::components::{
-    about_dialog, add_directory_dialog, add_feed_dialog, help_overlay, leaflet,
+    about_dialog, add_directory_dialog, add_feed_dialog, content, help_overlay,
 };
 use super::Msg;
 use relm4::actions::{AccelsPlus, RelmAction, RelmActionGroup};
@@ -39,7 +39,7 @@ pub(super) fn setup_actions(app_window: &adw::ApplicationWindow) {
     // Create the Update All Feeds action
     let update_all_feeds_action: RelmAction<UpdateAllFeeds> = RelmAction::new_stateless({
         move |_| {
-            leaflet::feeds::BROKER.send(leaflet::feeds::Msg::ToggleUpdateAll);
+            content::BROKER.send(content::Msg::ToggleUpdateAll);
         }
     });
     // Create the Show Help Overlay action

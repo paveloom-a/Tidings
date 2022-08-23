@@ -7,7 +7,7 @@ use gtk::prelude::{
 };
 use relm4::{ComponentParts, ComponentSender, MessageBroker, SimpleComponent};
 
-use super::leaflet::feeds;
+use super::content;
 use super::AppMsg;
 
 /// Message broker
@@ -72,10 +72,8 @@ impl SimpleComponent for Model {
             Msg::Add => {
                 // Get the title
                 let title = self.title.text();
-                // Prepare a node
-                let node = feeds::tree::Node::new_directory(title);
-                // Add the node
-                feeds::BROKER.send(feeds::Msg::Add(node));
+                // Add the source
+                content::BROKER.send(content::Msg::AddDirectory(title));
                 // Hide the dialog
                 sender.input(Msg::Hide);
             }

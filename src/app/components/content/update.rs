@@ -5,8 +5,7 @@ use relm4::{Component, ComponentSender, Worker, WorkerController};
 
 use std::convert::identity;
 
-use super::tree::IndicesUrls;
-use crate::app::components::leaflet::tidings::{self, dictionary::Tiding};
+use super::{Tiding, URLsMap};
 
 /// Model
 pub struct Model;
@@ -23,7 +22,7 @@ pub(super) fn new(sender: &ComponentSender<super::Model>) -> WorkerController<Mo
 #[derive(Debug)]
 pub enum Msg {
     /// Update all feeds
-    UpdateAll(IndicesUrls),
+    UpdateAll(URLsMap),
 }
 
 impl Worker for Model {
@@ -42,19 +41,17 @@ impl Worker for Model {
                     shutdown
                         .register(async move {
                             // For each pair
-                            indices_urls.into_par_iter().for_each(|(index, _url)| {
-                                // Add the updating status to the feed
-                                super::BROKER.send(super::Msg::UpdateStarted(index));
+                            indices_urls.into_par_iter().for_each(|(url, indices)| {
+                                // Add the updating status
+                                super::BROKER.send(super::Msg::UpdateStarted(indices.clone()));
                                 // Prepare some fake results
                                 let tidings = vec![Tiding {
-                                    title: index.into_raw_parts().0.to_string(),
+                                    title: format!("URL: {}", url),
                                 }];
                                 // Imitate some work
                                 std::thread::sleep(std::time::Duration::from_secs(1));
-                                // Remove the updating status of the feed
-                                super::BROKER.send(super::Msg::UpdateFinished(index));
-                                // Send the tidings to Tidings
-                                tidings::BROKER.send(tidings::Msg::Insert(index, tidings));
+                                // Insert the tidings into the dictionary
+                                super::BROKER.send(super::Msg::Insert(indices, url, tidings));
                             });
                             // Notify Feeds that the whole update is finished
                             super::BROKER.send(super::Msg::StopUpdateAll);
